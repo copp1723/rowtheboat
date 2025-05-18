@@ -1,57 +1,133 @@
 /**
- * Base Types for BullMQ Jobs
+ * Base types for BullMQ jobs
  * 
- * This file contains the base types and interfaces for BullMQ jobs and queues.
- * These types provide a foundation for type-safe job processing throughout the application.
+ * This file contains the base interfaces for all BullMQ job data types.
+ * All job data types should extend the BaseJobData interface.
  */
 
-import { JobsOptions, QueueOptions, WorkerOptions, Job as BullMQJob } from 'bullmq';
-
 /**
- * Common job status values across all job types
- */
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'retrying';
-
-/**
- * Base interface for all job data payloads
- * All specific job data types should extend this interface
+ * Base interface for all job data
  */
 export interface BaseJobData {
   /**
    * Unique identifier for the job
    */
-  jobId?: string;
+  id: string;
   
   /**
    * Timestamp when the job was created
    */
-  createdAt?: Date | string;
-}
-
-/**
- * Base interface for job options
- * Extends BullMQ's JobsOptions with our application-specific defaults
- */
-export interface JobOptions extends JobsOptions {
+  createdAt: string;
+  
   /**
-   * Priority of the job (higher means higher priority)
-   * Default is 1
+   * User ID of the user who created the job (if applicable)
+   */
+  userId?: string;
+  
+  /**
+   * Organization ID associated with the job (if applicable)
+   */
+  organizationId?: string;
+  
+  /**
+   * Priority of the job (higher number = higher priority)
    */
   priority?: number;
   
   /**
-   * Number of attempts before marking job as failed
-   * Default is 3
+   * Maximum number of attempts for this job
    */
-  attempts?: number;
+  maxAttempts?: number;
   
+  /**
+   * Custom metadata for the job
+   */
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Job result interface
+ */
+export interface JobResult<T = any> {
+  /**
+   * Whether the job was successful
+   */
+  success: boolean;
+  
+  /**
+   * Result data (if successful)
+   */
+  data?: T;
+  
+  /**
+   * Error message (if failed)
+   */
+  error?: string;
+  
+  /**
+   * Error stack trace (if failed)
+   */
+  stack?: string;
+  
+  /**
+   * Timestamp when the job was completed
+   */
+  completedAt: string;
+  
+  /**
+   * Duration of the job execution in milliseconds
+   */
+  duration: number;
+  
+  /**
+   * Number of attempts made
+   */
+  attempts: number;
+}
+
+/**
+ * Job status enum
+ */
+export enum JobStatus {
+  WAITING = 'waiting',
+  ACTIVE = 'active',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  DELAYED = 'delayed',
+  PAUSED = 'paused',
+}
+
+/**
+ * Job options interface
+ */
+export interface JobOptions {
   /**
    * Delay in milliseconds before the job is processed
    */
   delay?: number;
   
   /**
-   * Whether to remove the job when it completes
+   * Number of attempts before the job is marked as failed
+   */
+  attempts?: number;
+  
+  /**
+   * Backoff strategy for retries
+   */
+  backoff?: {
+    /**
+     * Type of backoff strategy
+     */
+    type: 'fixed' | 'exponential';
+    
+    /**
+     * Delay in milliseconds
+     */
+    delay: number;
+  };
+  
+  /**
+   * Whether to remove the job when it's completed
    */
   removeOnComplete?: boolean | number;
   
@@ -59,36 +135,14 @@ export interface JobOptions extends JobsOptions {
    * Whether to remove the job when it fails
    */
   removeOnFail?: boolean | number;
-}
-
-/**
- * Type for a BullMQ job with strongly typed data
- */
-export type TypedJob<T extends BaseJobData> = BullMQJob<T, any, string>;
-
-/**
- * Interface for job processor functions
- */
-export interface JobProcessor<T extends BaseJobData> {
-  (job: TypedJob<T>): Promise<any>;
-}
-
-/**
- * Base interface for queue configuration
- */
-export interface QueueConfig {
-  /**
-   * Name of the queue
-   */
-  name: string;
   
   /**
-   * Options for the queue
+   * Job priority (higher number = higher priority)
    */
-  options?: QueueOptions;
+  priority?: number;
   
   /**
-   * Options for the worker
+   * Job timeout in milliseconds
    */
-  workerOptions?: WorkerOptions;
+  timeout?: number;
 }
