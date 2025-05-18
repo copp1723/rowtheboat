@@ -11,6 +11,7 @@ import {
   integer,
   bigint,
   uniqueIndex,
+  decimal, // Add decimal import
 } from 'drizzle-orm/pg-core';
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -472,7 +473,7 @@ export const insightLogs = pgTable(
     promptTokens: integer('prompt_tokens'),
     completionTokens: integer('completion_tokens'),
     totalTokens: integer('total_tokens'),
-    cost: decimal('cost', { precision: 10, scale: 6 }),
+    cost: decimal('cost', { precision: 10, scale: 6 }), // Add decimal type
     metadata: jsonb('metadata'),
   },
   (table) => [
