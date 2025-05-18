@@ -13,6 +13,15 @@ import { stepHandlers } from './stepHandlers.js';
 import { sendWorkflowCompletionEmail } from './workflowEmailServiceFixed.js';
 // Import logger
 import logger from '../utils/logger.js';
+
+function getErrorMessage(error: any): string {
+  if (isError(error)) {
+    return error.message;
+  } else {
+    return String(error);
+  }
+}
+
 /**
  * Create a new workflow
  */
@@ -247,7 +256,17 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
       return newWorkflow;
     } catch (error) {
       // Handle step error
-      console.error(`Error executing step ${currentStepIndex + 1}/${steps.length}:`, error);
+      const errorMessage = getErrorMessage(error);
+      logger.error(
+        {
+          event: 'workflow_error',
+          workflowId,
+          errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
+          timestamp: new Date().toISOString(),
+        },
+        `Error executing workflow ${workflowId}`
+      );
       // Determine if we should retry the step
       let shouldRetry = false;
       let retryBackoff = 0;
@@ -269,14 +288,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
         .set({
           steps: steps,
           status: shouldRetry ? 'paused' : 'failed',
-          lastError:
-            error instanceof Error
-              ? error instanceof Error
-                ? error instanceof Error
-                  ? (error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error))
-                  : String(error)
-                : String(error)
-              : String(error),
+          lastError: errorMessage,
           locked: false,
           updatedAt: new Date(),
           lastUpdated: new Date(),
@@ -289,27 +301,17 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
       return failedWorkflow;
     }
   } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-        : String(error)
-      : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error)
-          ? error instanceof Error
-            ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-            : String(error)
-          : String(error)
-        : String(error)
-      : String(error);
-    console.error('Error running workflow:', error);
+    const errorMessage = getErrorMessage(error);
+    logger.error(
+      {
+        event: 'workflow_error',
+        workflowId,
+        errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      },
+      `Error executing workflow ${workflowId}`
+    );
     // Ensure we unlock the workflow in case of error
     try {
       await // @ts-ignore
@@ -317,18 +319,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
         .update(workflows)
         .set({
           locked: false,
-          lastError:
-            error instanceof Error
-              ? isError(error)
-                ? error instanceof Error
-                  ? isError(error)
-                    ? error instanceof Error
-                      ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-                      : String(error)
-                    : String(error)
-                  : String(error)
-                : String(error)
-              : String(error),
+          lastError: errorMessage,
           updatedAt: new Date(),
         })
         .where(eq(workflows.id, workflowId.toString()));
