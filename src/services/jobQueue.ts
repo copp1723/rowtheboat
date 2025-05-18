@@ -6,24 +6,27 @@ import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger.js';
 
-// Types for Redis and BullMQ
-import type { RedisOptions } from 'ioredis';
-// BullMQ types are imported dynamically, so we will define minimal interfaces for type safety
-
-// Job data interface
-export interface JobData {
-  [key: string]: unknown;
-}
+// Import the centralized BullMQ types
+import {
+  TaskJobData,
+  JobStatus,
+  Queue,
+  QueueScheduler,
+  Worker,
+  Job,
+  TypedJob
+} from '../types/bullmq';
+import type { Redis as IORedisClient, RedisOptions } from 'ioredis';
 
 // In-memory job structure
 export interface InMemoryJob {
   id: string;
   taskId: string;
-  status: string;
+  status: JobStatus;
   attempts: number;
   maxAttempts: number;
   lastError?: string;
-  data: JobData;
+  data: TaskJobData;
   createdAt: Date;
   updatedAt: Date;
   nextRunAt: Date;
@@ -34,11 +37,9 @@ export interface InMemoryJob {
 const inMemoryJobs: InMemoryJob[] = [];
 let inMemoryMode = false;
 
-// Redis/BullMQ clients (set after dynamic import)
-import type { Redis as IORedisClient } from 'ioredis';
-import type { Queue, QueueScheduler, Worker, Job } from 'bullmq';
+// Redis/BullMQ clients
 let redisClient: IORedisClient | null = null;
-let jobQueue: Queue | null = null;
+let jobQueue: Queue<TaskJobData> | null = null;
 let scheduler: QueueScheduler | null = null;
 
 // Redis connection options
@@ -68,10 +69,18 @@ export async function initializeJobQueue() {
     });
     await redisClient.ping();
     const bullmqModule = await import('bullmq');
-    const QueueClass = bullmqModule.Queue || (bullmqModule.default && bullmqModule.default.Queue);
-    const QueueSchedulerClass = bullmqModule.QueueScheduler || (bullmqModule.default && bullmqModule.default.QueueScheduler);
-    jobQueue = new QueueClass('taskProcessor', { connection: redisClient }) as Queue;
-    scheduler = new QueueSchedulerClass('taskProcessor', { connection: redisClient }) as QueueScheduler;
+
+    // Get the Queue and QueueScheduler classes from the imported module
+    const QueueClass = bullmqModule.default?.Queue || bullmqModule.Queue;
+    const QueueSchedulerClass = bullmqModule.default?.QueueScheduler || bullmqModule.QueueScheduler;
+
+    if (!QueueClass || !QueueSchedulerClass) {
+      throw new Error('Failed to import BullMQ classes');
+    }
+
+    jobQueue = new QueueClass('taskProcessor', { connection: redisClient }) as Queue<TaskJobData>;
+    scheduler = new QueueSchedulerClass('taskProcessor', { connection: redisClient });
+
     logger.info({ event: 'bullmq_initialized', timestamp: new Date().toISOString() }, 'BullMQ initialized with Redis connection');
     inMemoryMode = false;
   } catch (error) {
@@ -88,6 +97,27 @@ export async function initializeJobQueue() {
 
 // --- Worker Setup Section ---
 /**
+ * Comprehensive BullMQ job interface
+ */
+export interface BullJob<T = TaskJobData> {
+  id: string;
+  name: string;
+  queueName: string;
+  data: T;
+  opts: {
+    attempts: number;
+    backoff: {
+      type: 'fixed' | 'exponential';
+      delay: number;
+    };
+    priority?: number;
+  };
+  progress: (value: number) => Promise<void>;
+  log: (message: string) => Promise<void>;
+  update: (data: T) => Promise<void>;
+}
+
+/**
  * Initialize a BullMQ worker to process jobs from the queue.
  * Handles job completion and failure events with explicit typing.
  */
@@ -96,50 +126,48 @@ async function setupWorker() {
     try {
       // Import BullMQ Worker class dynamically
       const bullmq = await import('bullmq');
-      type BullJob = { id: string; data: JobData };
-      // Use explicit type for worker
-      const WorkerClass = bullmq.Worker as unknown as new (
-        name: string,
-        processor: (job: BullJob) => Promise<void>,
-        opts: { connection: unknown }
-      ) => { on: (event: string, handler: (...args: any[]) => void) => void };
+
+      // Get the Worker class from the imported module
+      // Use type assertion to handle dynamic import
+      const WorkerClass = (bullmq as any).Worker || ((bullmq as any).default && (bullmq as any).default.Worker);
+
+      if (!WorkerClass) {
+        throw new Error('Failed to import BullMQ Worker class');
+      }
+
+      // Use type assertion to handle the worker creation
       const worker = new WorkerClass(
         'taskProcessor',
-        async (job: BullJob) => {
-          if (job && job.id && job.data) {
+        async (job: BullJob<TaskJobData>) => {
+          if (job?.id && job?.data) {
             await processJob(job.id, job.data);
           }
         },
-        { connection: redisClient }
-      );
-      // Job completed event
-      worker.on('completed', async (job: BullJob) => {
-        if (job && job.id) {
-          await updateJobStatus(job.id, 'completed');
+        {
+          connection: redisClient,
+          autorun: false
+        }
+      ) as any;
+
+      worker.on('completed', async (job: BullJob<TaskJobData>) => {
+        if (job?.id) await updateJobStatus(job.id, 'completed');
+      });
+
+      worker.on('failed', async (job: BullJob<TaskJobData> | undefined, error: Error) => {
+        if (job?.id) {
+          await updateJobStatus(job.id, 'failed', error.message);
+          if (job.opts.attempts > 1) {
+            const nextRunAt = new Date(Date.now() + job.opts.backoff.delay);
+            await updateJobForRetry(job.id, error.message, nextRunAt);
+          }
         }
       });
-      // Job failed event
-      worker.on('failed', async (job: BullJob, error: Error) => {
-        if (!job || !job.id) return;
-        const jobData = await getJobById(job.id);
-        if (!jobData) return;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (jobData.attempts >= jobData.maxAttempts) {
-          await updateJobStatus(job.id, 'failed', errorMessage);
-        } else {
-          const backoffDelay = Math.pow(2, jobData.attempts) * 5000;
-          const nextRunAt = new Date(Date.now() + backoffDelay);
-          await updateJobForRetry(job.id, errorMessage, nextRunAt);
-        }
-      });
-      logger.info({ event: 'worker_initialized', timestamp: new Date().toISOString() }, 'BullMQ worker initialized');
+
+      worker.run();
+      logger.info('BullMQ worker initialized with type-safe job processing');
     } catch (error) {
-      logger.warn({
-        event: 'worker_init_failed',
-        errorMessage: isError(error) ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString(),
-      }, 'Failed to initialize BullMQ worker');
+      logger.error('Failed to initialize type-safe BullMQ worker', error);
+      inMemoryMode = true;
     }
   } else {
     logger.info({ event: 'in_memory_processor_initialized', timestamp: new Date().toISOString() }, 'In-memory job processor initialized');
@@ -153,19 +181,21 @@ async function processInMemoryJobs() {
   const pendingJobs = inMemoryJobs.filter((job) => job.status === 'pending' && job.nextRunAt <= now);
   for (const job of pendingJobs) {
     try {
-      job.status = 'running';
+      // Use 'processing' instead of 'running' to match JobStatus type
+      job.status = 'processing';
       job.lastRunAt = new Date();
       await processJob(job.id, job.data);
       job.status = 'completed';
       job.updatedAt = new Date();
     } catch (error) {
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
+      // Get error message
+      const errorMsg = isError(error) ? error.message : String(error);
       if (job.attempts >= job.maxAttempts) {
         job.status = 'failed';
-        job.lastError = error instanceof Error ? error.message : String(error);
+        job.lastError = errorMsg;
       } else {
         job.attempts += 1;
-        job.lastError = error instanceof Error ? error.message : String(error);
+        job.lastError = errorMsg;
         const backoffDelay = Math.pow(2, job.attempts) * 5000;
         job.nextRunAt = new Date(Date.now() + backoffDelay);
       }
@@ -175,7 +205,16 @@ async function processInMemoryJobs() {
 }
 
 // Core job processing logic
-async function processJob(jobId: string, data: any) {
+async function processJob(_jobId: string, data: TaskJobData) {
+  // Basic validation
+  if (typeof data.taskId !== 'string') {
+    throw new Error('Invalid job data: taskId must be a string');
+  }
+
+  if (data.taskType === 'scheduledWorkflow' && !data.workflowId) {
+    throw new Error('workflowId required for scheduledWorkflow tasks');
+  }
+
   try {
     const { taskId } = data;
     if (!taskId) {
@@ -273,7 +312,7 @@ export async function getJobById(jobId: string) {
 /**
  * Update job status
  */
-export async function updateJobStatus(jobId: string, status: string, error?: string) {
+export async function updateJobStatus(jobId: string, status: JobStatus, error?: string) {
   if (inMemoryMode) {
     const job = inMemoryJobs.find((job) => job.id === jobId);
     if (job) {
