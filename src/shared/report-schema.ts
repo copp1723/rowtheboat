@@ -1,11 +1,12 @@
 /**
  * Database Schema for Multi-Vendor Report Ingestion
- * 
+ *
  * Defines the database tables for storing reports from multiple vendors,
  * tracking sources, and managing historical data for insights generation.
  */
 
 import { pgTable, text, uuid, timestamp, jsonb, integer, boolean, index, foreignKey } from 'drizzle-orm/pg-core';
+import { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 
 /**
  * Report Sources Table
@@ -145,3 +146,22 @@ export const reportProcessingJobs = pgTable('report_processing_jobs', {
     statusIdx: index('idx_report_processing_jobs_status').on(table.status),
   };
 });
+
+// Types
+export type ReportSource = InferSelectModel<typeof reportSources>;
+export type NewReportSource = InferInsertModel<typeof reportSources>;
+
+export type Report = InferSelectModel<typeof reports>;
+export type NewReport = InferInsertModel<typeof reports>;
+
+export type Insight = InferSelectModel<typeof insights>;
+export type NewInsight = InferInsertModel<typeof insights>;
+
+export type InsightDistribution = InferSelectModel<typeof insightDistributions>;
+export type NewInsightDistribution = InferInsertModel<typeof insightDistributions>;
+
+export type HistoricalMetric = InferSelectModel<typeof historicalMetrics>;
+export type NewHistoricalMetric = InferInsertModel<typeof historicalMetrics>;
+
+export type ReportProcessingJob = InferSelectModel<typeof reportProcessingJobs>;
+export type NewReportProcessingJob = InferInsertModel<typeof reportProcessingJobs>;

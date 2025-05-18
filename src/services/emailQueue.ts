@@ -45,7 +45,7 @@ class EmailQueueService {
       maxAttempts: this.maxRetries,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // @ts-ignore - Ensuring all required properties are provided;
+    });
     // Start processing if not already running
     if (!this.isProcessing) {
       this.processQueue().catch((error) =>

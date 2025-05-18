@@ -32,8 +32,7 @@ export async function createWorkflow(
       id: step.id || uuidv4(),
     }));
     // Create the workflow
-    const [workflow] = await // @ts-ignore
-    db.insert(workflows).values({
+    const [workflow] = await db.insert(workflows).values({
       userId,
       steps: stepsWithIds,
       currentStep: 0,
@@ -41,7 +40,7 @@ export async function createWorkflow(
       status: 'pending',
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // @ts-ignore - Ensuring all required properties are provided.returning();
+    } as any); // Ensuring all required properties are provided.returning();
     logger.info(
       {
         event: 'workflow_created',
@@ -84,8 +83,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
       return workflow;
     }
     // Lock the workflow
-    const [updatedWorkflow] = await // @ts-ignore
-    db
+    const [updatedWorkflow] = await db
       .update(workflows)
       .set({
         locked: true,
@@ -107,8 +105,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
     const currentStepIndex = updatedWorkflow.currentStep;
     if (currentStepIndex >= steps.length) {
       // Mark as completed if all steps are done
-      const [finalWorkflow] = await // @ts-ignore
-      db
+      const [finalWorkflow] = await db
         .update(workflows)
         .set({
           status: 'completed',
@@ -231,8 +228,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
         __lastStepResult: stepResult, // Store the last step result for easy access
       };
       // Update the workflow
-      const [newWorkflow] = await // @ts-ignore
-      db
+      const [newWorkflow] = await db
         .update(workflows)
         .set({
           currentStep: currentStepIndex + 1,
@@ -263,8 +259,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
         }
       }
       // Update the workflow with error information
-      const [failedWorkflow] = await // @ts-ignore
-      db
+      const [failedWorkflow] = await db
         .update(workflows)
         .set({
           steps: steps,
@@ -312,8 +307,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
     console.error('Error running workflow:', error);
     // Ensure we unlock the workflow in case of error
     try {
-      await // @ts-ignore
-      db
+      await db
         .update(workflows)
         .set({
           locked: false,
@@ -392,8 +386,7 @@ export async function listWorkflows(
  */
 export async function resetWorkflow(workflowId: string): Promise<Workflow> {
   try {
-    const [workflow] = await // @ts-ignore
-    db
+    const [workflow] = await db
       .update(workflows)
       .set({
         currentStep: 0,
@@ -415,8 +408,7 @@ export async function resetWorkflow(workflowId: string): Promise<Workflow> {
  */
 export async function deleteWorkflow(workflowId: string): Promise<boolean> {
   try {
-    const result = await // @ts-ignore
-    db.delete(workflows).where(eq(workflows.id, workflowId.toString()));
+    const result = await db.delete(workflows).where(eq(workflows.id, workflowId.toString()));
     return true;
   } catch (error) {
     console.error('Error deleting workflow:', error);
@@ -491,8 +483,7 @@ export async function configureWorkflowNotifications(
       notifyEmail: emails,
     };
     // Update the workflow context
-    const [updatedWorkflow] = await // @ts-ignore
-    db
+    const [updatedWorkflow] = await db
       .update(workflows)
       .set({
         context: updatedContext,

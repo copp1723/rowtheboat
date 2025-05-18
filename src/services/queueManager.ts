@@ -260,7 +260,7 @@ export async function addJob(
       nextRunAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // @ts-ignore - Ensuring all required properties are provided;
+    });
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -371,7 +371,7 @@ export async function addRepeatedJob(
       nextRunAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // @ts-ignore - Ensuring all required properties are provided;
+    });
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);

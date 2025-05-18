@@ -1,9 +1,9 @@
 /**
  * Database Connection Module
- * 
+ *
  * This module provides a centralized database connection using Drizzle ORM with Postgres.
  * It handles connection configuration, error handling, and connection pooling.
- * 
+ *
  * Features:
  * - Environment-based configuration
  * - Connection pooling with timeout settings
@@ -12,7 +12,8 @@
  * - Support for multiple deployment environments
  */
 
-import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { PostgresJsDatabase } from 'drizzle-orm/postgres-js/driver';
 import postgres, { Sql } from 'postgres';
 import dotenv from 'dotenv';
 import logger from '../utils/logger';
@@ -63,20 +64,20 @@ const DEFAULT_CONFIG: DbConfig = {
 
 /**
  * Get database configuration from environment variables
- * 
+ *
  * @returns Database configuration object
  * @throws Error if no database connection information is available
  */
 function getDatabaseConfig(): DbConfig {
   const config: DbConfig = { ...DEFAULT_CONFIG };
-  
+
   // First try to use the DATABASE_URL environment variable
   if (process.env.DATABASE_URL) {
     config.connectionString = process.env.DATABASE_URL;
     logger.info('Using DATABASE_URL for database connection');
     return config;
   }
-  
+
   // Then try to use individual PostgreSQL environment variables
   if (
     process.env.PGHOST &&
@@ -90,13 +91,13 @@ function getDatabaseConfig(): DbConfig {
     config.user = process.env.PGUSER;
     config.password = process.env.PGPASSWORD;
     config.database = process.env.PGDATABASE;
-    
+
     // Build connection string
     config.connectionString = `postgres://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`;
     logger.info('Using PostgreSQL environment variables for database connection');
     return config;
   }
-  
+
   // If we get here, we don't have enough information to connect
   throw new Error(
     'No database connection information available. Please set either DATABASE_URL or all of PGHOST, PGPORT, PGUSER, PGPASSWORD, and PGDATABASE environment variables.'
@@ -105,7 +106,7 @@ function getDatabaseConfig(): DbConfig {
 
 /**
  * Create a database client with the given configuration
- * 
+ *
  * @param config - Database configuration
  * @returns Postgres client
  */
@@ -113,11 +114,11 @@ function createDatabaseClient(config: DbConfig): Sql<{}> {
   if (!config.connectionString) {
     throw new Error('Connection string is required');
   }
-  
+
   // Log connection attempt (masking password)
   const maskedConnectionString = config.connectionString.replace(/:[^:]+@/, ':***@');
   logger.info(`Connecting to database: ${maskedConnectionString}`);
-  
+
   // Create postgres client with connection options
   return postgres(config.connectionString, {
     ssl: config.ssl,
@@ -151,8 +152,8 @@ const combinedSchema = {
 };
 
 // Create and export the Drizzle DB instance
-export const db: PostgresJsDatabase<typeof combinedSchema> = drizzle(client, { 
-  schema: combinedSchema 
+export const db = drizzle(client, {
+  schema: combinedSchema
 });
 
 /**
