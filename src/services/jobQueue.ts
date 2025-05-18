@@ -1,18 +1,22 @@
 import { sql } from 'drizzle-orm';
-import { getErrorMessage } from '....js';
-import { getErrorMessage } from '....js';
 import { isError } from '../utils/errorUtils.js';
-/**
- * Job Queue Service
- * Implements a job queue with retry logic using BullMQ
- */
-// Use CommonJS-style requires to avoid TypeScript errors with ESM compatibility
-// We'll type everything with 'any' to avoid complex TypeScript errors
 import { db } from '../shared/db.js';
 import { jobs, taskLogs } from '../shared/schema.js';
-import { eq, and, sql, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger.js';
+
+// Import the centralized BullMQ types
+import {
+  TaskJobData,
+  JobStatus,
+  Queue,
+  QueueScheduler,
+  Worker,
+  Job,
+  TypedJob
+} from '../types/bullmq';
+import type { Redis as IORedisClient, RedisOptions } from 'ioredis';
 // Initialize Redis connection for BullMQ
 const redisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
