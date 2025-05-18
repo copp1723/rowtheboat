@@ -1,46 +1,57 @@
 import { sql } from 'drizzle-orm';
-import { getErrorMessage } from '....js';
-import { getErrorMessage } from '....js';
-import { isError } from '../utils/errorUtils.js';
+import { getErrorMessage, isError } from '../utils/errorUtils.js';
+import { db } from '../shared/db.js';
+import { jobs, taskLogs } from '../shared/schema.js';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger.js';
+// We'll use dynamic imports for the actual implementations
+// and just define the types here
+import type { Redis } from 'ioredis';
+import type { TaskJobData } from '../types/bullmq';
+
+// Define types for BullMQ
+type Queue<_DataType = any> = any; // Prefix with underscore to indicate unused
+type QueueScheduler = any;
+type ConnectionOptions = {
+  host?: string;
+  port?: number;
+  password?: string;
+  connectTimeout?: number;
+  maxRetriesPerRequest?: number;
+};
+
 /**
  * Job Queue Service
  * Implements a job queue with retry logic using BullMQ
  */
-// Use CommonJS-style requires to avoid TypeScript errors with ESM compatibility
-// We'll type everything with 'any' to avoid complex TypeScript errors
-import { db } from '../shared/db.js';
-import { jobs, taskLogs } from '../shared/schema.js';
-import { eq, and, sql, sql } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
-import logger from '../utils/logger.js';
-// Initialize Redis connection for BullMQ
-const redisOptions = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  // Only include password if it's defined
-  ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
-};
-// Use 'any' type to avoid TypeScript issues with dynamic imports
-let redisClient: any = null;
-let jobQueue: any = null;
-let scheduler: any = null;
-// Export functions and variables for use in other services
+
+// Redis client instance
+let redisClient: Redis | null = null;
+// Queue instance
+let jobQueue: Queue<TaskJobData> | null = null;
+// Scheduler instance
+let scheduler: QueueScheduler | null = null;
+
+// Default connection options are defined inline where needed
+
 // Use in-memory fallback for dev environments without Redis
-type InMemoryJob = {
+interface InMemoryJob {
   id: string;
   taskId: string;
   status: string;
   attempts: number;
   maxAttempts: number;
   lastError?: string;
-  data: any;
+  data: TaskJobData;
   createdAt: Date;
   updatedAt: Date;
   nextRunAt: Date;
   lastRunAt?: Date;
-};
+}
 const inMemoryJobs: InMemoryJob[] = [];
 let inMemoryMode = false;
+
 // Initialize job queue with retry capability
 export async function initializeJobQueue() {
   try {
@@ -48,10 +59,8 @@ export async function initializeJobQueue() {
     if (process.env.FORCE_IN_MEMORY_QUEUE === 'true') {
       throw new Error('Forcing in-memory queue mode');
     }
-    // Dynamically import for ESM compatibility
-    const Redis = await import('ioredis').then((m) => m.default);
     // Create Redis client with proper options typing
-    const options: any = {
+    const options: ConnectionOptions = {
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
       // Set a lower connection timeout to fail faster
@@ -75,33 +84,40 @@ export async function initializeJobQueue() {
     // Import Redis dynamically to ensure ESM compatibility
     const IORedis = await import('ioredis');
     const RedisClient = IORedis.default;
-    // Use type assertion to avoid TypeScript errors
-    redisClient = new (RedisClient as any)(options);
+    // Create Redis client with proper typing
+    redisClient = new RedisClient(options);
     // Handle connection errors gracefully
-    redisClient.on('error', (err: any) => {
+    redisClient.on('error', (err: Error) => {
       if (!inMemoryMode) {
         logger.error(
           {
             event: 'redis_connection_error',
-            errorMessage: err.message,
+            errorMessage: getErrorMessage(err),
             timestamp: new Date().toISOString(),
           },
-          `Redis connection error: ${err.message}`
+          `Redis connection error: ${getErrorMessage(err)}`
         );
       }
     });
     await redisClient.ping();
     // Use dynamic import for BullMQ (ESM compatible)
-    const { Queue, Worker } = await import('bullmq');
-    // Create job queue with connection
-    jobQueue = new Queue('taskProcessor', { connection: redisClient });
+    const bullMQModule = await import('bullmq');
+    // Create job queue with connection using type assertion to handle module structure
+    const BullQueue = (bullMQModule as any).Queue || (bullMQModule as any).default?.Queue || (bullMQModule as any).default;
+
+    if (!BullQueue) {
+      throw new Error('Could not find Queue class in bullmq module');
+    }
+
+    jobQueue = new BullQueue('taskProcessor', { connection: redisClient });
+
     try {
       // Import QueueScheduler directly from bullmq
-      const bullMQModule = await import('bullmq');
-      // Use type assertion to avoid TypeScript errors with ESM exports
-      const QueueScheduler = (bullMQModule as any).QueueScheduler;
-      if (QueueScheduler) {
-        scheduler = new QueueScheduler('taskProcessor', { connection: redisClient });
+      const BullQueueScheduler = (bullMQModule as any).QueueScheduler ||
+                                (bullMQModule as any).default?.QueueScheduler;
+
+      if (BullQueueScheduler) {
+        scheduler = new BullQueueScheduler('taskProcessor', { connection: redisClient });
         logger.info(
           { event: 'scheduler_initialized', timestamp: new Date().toISOString() },
           'QueueScheduler initialized successfully'
@@ -116,8 +132,8 @@ export async function initializeJobQueue() {
       logger.warn(
         {
           event: 'scheduler_init_failed',
-          errorMessage: err.message,
-          stack: err.stack,
+          errorMessage: getErrorMessage(err),
+          stack: isError(err) ? err.stack : undefined,
           timestamp: new Date().toISOString(),
         },
         'QueueScheduler could not be initialized, continuing without scheduler'
@@ -129,33 +145,13 @@ export async function initializeJobQueue() {
       'BullMQ initialized with Redis connection'
     );
   } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-        : String(error)
-      : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error)
-          ? error instanceof Error
-            ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-            : String(error)
-          : String(error)
-        : String(error)
-      : String(error);
+    const errorMessage = getErrorMessage(error);
     // Fall back to in-memory job processing
     logger.warn(
       {
         event: 'redis_connection_failed',
-        errorMessage: isError(error) ? getErrorMessage(error) : String(error),
-        stack:
-          error instanceof Error ? (error instanceof Error ? (error instanceof Error ? (error instanceof Error ? error.stack : undefined) : undefined) : undefined) : undefined,
+        errorMessage,
+        stack: isError(error) ? error.stack : undefined,
         timestamp: new Date().toISOString(),
       },
       'Redis connection failed, using in-memory job queue'
@@ -165,14 +161,25 @@ export async function initializeJobQueue() {
   // Set up job processing
   await setupWorker();
 }
+
 // Initialize a worker to process jobs
 async function setupWorker() {
   if (!inMemoryMode && redisClient) {
     try {
       // Use dynamic import for ESM compatibility
-      const { Worker } = await import('bullmq');
+      const bullMQModule = await import('bullmq');
+
+      // Use type assertion to handle different module structures
+      const BullWorker = (bullMQModule as any).Worker ||
+                        (bullMQModule as any).default?.Worker ||
+                        (bullMQModule as any).default;
+
+      if (!BullWorker) {
+        throw new Error('Could not find Worker class in bullmq module');
+      }
+
       // Create type-safe worker with correct typing
-      const worker: any = new Worker(
+      const worker = new BullWorker(
         'taskProcessor',
         async (job: any) => {
           if (job && job.id && job.data) {
@@ -181,25 +188,20 @@ async function setupWorker() {
         },
         { connection: redisClient }
       );
+
       // Handle job completion
       worker.on('completed', async (job: any) => {
         if (job && job.id) {
           await updateJobStatus(job.id, 'completed');
         }
       });
+
       // Handle job failures
       worker.on('failed', async (job: any, error: any) => {
         if (!job || !job.id) return;
         const jobData = await getJobById(job.id);
         if (!jobData) return;
-        const errorMessage =
-          error instanceof Error
-            ? error instanceof Error
-              ? error instanceof Error
-                ? (error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error))
-                : String(error)
-              : String(error)
-            : String(error);
+        const errorMessage = getErrorMessage(error);
         if (jobData.attempts >= jobData.maxAttempts) {
           await updateJobStatus(job.id, 'failed', errorMessage);
         } else {
@@ -213,13 +215,12 @@ async function setupWorker() {
         { event: 'worker_initialized', timestamp: new Date().toISOString() },
         'BullMQ worker initialized'
       );
-    } catch (error: any) {
+    } catch (error) {
       logger.warn(
         {
           event: 'worker_init_failed',
           errorMessage: getErrorMessage(error),
-          stack:
-            error instanceof Error ? (error instanceof Error ? (error instanceof Error ? (error instanceof Error ? error.stack : undefined) : undefined) : undefined) : undefined,
+          stack: isError(error) ? error.stack : undefined,
           timestamp: new Date().toISOString(),
         },
         'Failed to initialize BullMQ worker'
@@ -234,6 +235,7 @@ async function setupWorker() {
     setInterval(processInMemoryJobs, 5000);
   }
 }
+
 // Process in-memory jobs for dev environments
 async function processInMemoryJobs() {
   const now = new Date();
@@ -248,39 +250,9 @@ async function processInMemoryJobs() {
       job.status = 'completed';
       job.updatedAt = new Date();
     } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error)
-        ? error instanceof Error
-          ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-          : String(error)
-        : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error)
-        ? error instanceof Error
-          ? isError(error)
-            ? error instanceof Error
-              ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-              : String(error)
-            : String(error)
-          : String(error)
-        : String(error);
+      const errorMessage = getErrorMessage(error);
       job.attempts += 1;
-      job.lastError =
-        error instanceof Error
-          ? isError(error)
-            ? error instanceof Error
-              ? isError(error)
-                ? error instanceof Error
-                  ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-                  : String(error)
-                : String(error)
-              : String(error)
-            : String(error)
-          : String(error);
+      job.lastError = errorMessage;
       if (job.attempts >= job.maxAttempts) {
         job.status = 'failed';
       } else {
@@ -293,13 +265,14 @@ async function processInMemoryJobs() {
     }
   }
 }
+
 // Core job processing logic
-async function processJob(jobId: string, data: any) {
+async function processJob(jobId: string, data: TaskJobData) {
   try {
     // Extract task ID from job data
-    const { taskId } = data;
+    const taskId = data.params?.taskId;
     if (!taskId) {
-      throw new Error('Job data missing taskId');
+      throw new Error('Job data missing taskId in params');
     }
     // Mark task as processing
     await db
@@ -347,66 +320,48 @@ async function processJob(jobId: string, data: any) {
     }
     return true;
   } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-        : String(error)
-      : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error)
-          ? error instanceof Error
-            ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-            : String(error)
-          : String(error)
-        : String(error)
-      : String(error);
+    const errorMessage = getErrorMessage(error);
     logger.error(
       {
         event: 'job_processing_error',
         jobId,
-        errorMessage: isError(error) ? getErrorMessage(error) : String(error),
-        stack:
-          error instanceof Error ? (error instanceof Error ? (error instanceof Error ? (error instanceof Error ? error.stack : undefined) : undefined) : undefined) : undefined,
+        errorMessage,
+        stack: isError(error) ? error.stack : undefined,
         timestamp: new Date().toISOString(),
       },
       `Error processing job ${jobId}`
     );
     // Update task with error
-    if (data && data.taskId) {
+    const taskId = data?.params?.taskId;
+    if (taskId) {
       await db
         .update(taskLogs)
         .set({
           status: 'failed',
-          error:
-            error instanceof Error
-              ? error instanceof Error
-                ? error instanceof Error
-                  ? (error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error))
-                  : String(error)
-                : String(error)
-              : String(error),
+          error: errorMessage,
         })
-        .where(eq(taskLogs.id, data.taskId));
+        .where(eq(taskLogs.id, taskId.toString()));
     }
     throw error; // Re-throw to let the queue handle retries
   }
 }
+
 /**
  * Add a new job to the queue
  */
 export async function enqueueJob(taskId: string, priority: number = 1): Promise<string> {
   const jobId = uuidv4();
+  const jobData: TaskJobData = {
+    id: jobId,
+    taskType: 'processTask',
+    params: { taskId },
+    createdAt: new Date().toISOString()
+  };
+
   if (!inMemoryMode && jobQueue) {
     await jobQueue.add(
       'processTask',
-      { taskId },
+      jobData,
       {
         jobId,
         priority,
@@ -425,24 +380,24 @@ export async function enqueueJob(taskId: string, priority: number = 1): Promise<
       status: 'pending',
       attempts: 0,
       maxAttempts: 3,
-      data: { taskId },
+      data: jobData,
       createdAt: new Date(),
       updatedAt: new Date(),
       nextRunAt: new Date(),
     });
   }
   // Insert job record in database
-  await // @ts-ignore
-  db.insert(jobs).values({
+  await db.insert(jobs).values({
     id: jobId,
     taskId,
     status: 'pending',
     attempts: 0,
     maxAttempts: 3,
     nextRunAt: new Date(),
-  } as any); // @ts-ignore - Ensuring all required properties are provided;
+  });
   return jobId;
 }
+
 /**
  * Get job by ID
  */
@@ -453,6 +408,7 @@ export async function getJobById(jobId: string) {
   const results = await db.select().from(jobs).where(eq(jobs.id, jobId.toString()));
   return results.length > 0 ? results[0] : null;
 }
+
 /**
  * Update job status
  */
@@ -475,6 +431,7 @@ export async function updateJobStatus(jobId: string, status: string, error?: str
     })
     .where(eq(jobs.id, jobId.toString()));
 }
+
 /**
  * Update job for retry
  */
@@ -501,6 +458,7 @@ export async function updateJobForRetry(jobId: string, error: string, nextRunAt:
     })
     .where(eq(jobs.id, jobId.toString()));
 }
+
 /**
  * List all jobs with optional filtering
  */
@@ -524,6 +482,7 @@ export async function listJobs(status?: string, limit: number = 100) {
   // Otherwise return all jobs with limit
   return await db.select().from(jobs).limit(limit).orderBy(jobs.createdAt);
 }
+
 /**
  * Manually retry a failed job
  */
@@ -549,9 +508,19 @@ export async function retryJob(jobId: string): Promise<boolean> {
       .where(eq(jobs.id, jobId.toString()));
     // For BullMQ, add back to queue
     if (!inMemoryMode && jobQueue) {
+      // Get the task ID from the job data
+      const taskId = jobData.taskId;
+
+      const newJobData: TaskJobData = {
+        id: jobId,
+        taskType: 'processTask',
+        params: { taskId },
+        createdAt: new Date().toISOString()
+      };
+
       await jobQueue.add(
         'processTask',
-        { taskId: jobData.taskId },
+        newJobData,
         {
           jobId,
           priority: 10, // Higher priority for retries
@@ -561,33 +530,13 @@ export async function retryJob(jobId: string): Promise<boolean> {
     }
     return true;
   } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-        : String(error)
-      : String(error);
-    // Use type-safe error handling
-    const errorMessage = isError(error)
-      ? error instanceof Error
-        ? isError(error)
-          ? error instanceof Error
-            ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-            : String(error)
-          : String(error)
-        : String(error)
-      : String(error);
+    const errorMessage = getErrorMessage(error);
     logger.error(
       {
         event: 'retry_job_error',
         jobId,
-        errorMessage: isError(error) ? getErrorMessage(error) : String(error),
-        stack:
-          error instanceof Error ? (error instanceof Error ? (error instanceof Error ? (error instanceof Error ? error.stack : undefined) : undefined) : undefined) : undefined,
+        errorMessage,
+        stack: isError(error) ? error.stack : undefined,
         timestamp: new Date().toISOString(),
       },
       `Error retrying job ${jobId}`
@@ -595,6 +544,7 @@ export async function retryJob(jobId: string): Promise<boolean> {
     return false;
   }
 }
+
 // Support cleanup to close connections
 export async function shutdown() {
   if (!inMemoryMode) {
