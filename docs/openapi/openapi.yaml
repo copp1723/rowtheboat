@@ -1,0 +1,290 @@
+openapi: 3.0.3
+info:
+  title: AgentFlow API
+  description: |
+    API for the AgentFlow system, providing task management, workflow execution, and data processing capabilities.
+    
+    This API allows you to submit tasks, check task status, manage workflows, and access various system features.
+  version: 1.0.0
+  contact:
+    name: AgentFlow Support
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: https://api.agentflow.example.com
+    description: Production server
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Tasks
+    description: Task management endpoints
+  - name: Workflows
+    description: Workflow management endpoints
+  - name: Jobs
+    description: Job management endpoints
+  - name: Auth
+    description: Authentication endpoints
+  - name: Credentials
+    description: Credential management endpoints
+  - name: Emails
+    description: Email management endpoints
+  - name: Schedules
+    description: Schedule management endpoints
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: Check if the API server is running
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API server is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: up
+                version: 1.0.0
+                message: API server is running
+
+  /api/tasks:
+    get:
+      summary: List all tasks
+      description: Get a list of all tasks
+      operationId: listTasks
+      tags:
+        - Tasks
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Submit a new task
+      description: Submit a new task for processing
+      operationId: submitTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+            example:
+              task: "Crawl https://news.ycombinator.com and extract the title, url, and score of the top 5 posts"
+      responses:
+        '201':
+          description: Task submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmissionResponse'
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                jobId: "job-123456"
+                message: "Task submitted and enqueued successfully"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid request"
+                message: "Task is required and must be a string"
+
+  /api/tasks/{taskId}:
+    get:
+      summary: Get task status
+      description: Get the status of a specific task
+      operationId: getTaskStatus
+      tags:
+        - Tasks
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the task to get status for
+      responses:
+        '200':
+          description: Task status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Not found"
+                message: "Task with ID 123e4567-e89b-12d3-a456-426614174000 not found"
+
+  /submit-task:
+    post:
+      summary: Execute task directly
+      description: Submit a task and wait for completion
+      operationId: executeTaskDirectly
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+            example:
+              task: "Crawl https://news.ycombinator.com and extract the title, url, and score of the top 5 posts"
+      responses:
+        '200':
+          description: Task executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Task execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [up, down]
+          description: Current status of the API
+        version:
+          type: string
+          description: API version
+        message:
+          type: string
+          description: Status message
+      required:
+        - status
+        - version
+        - message
+
+    TaskSubmission:
+      type: object
+      properties:
+        task:
+          type: string
+          description: Task description in natural language
+      required:
+        - task
+
+    TaskSubmissionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique task ID
+        jobId:
+          type: string
+          description: Job ID for the task
+        message:
+          type: string
+          description: Success message
+      required:
+        - id
+        - message
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique task ID
+        userId:
+          type: string
+          description: ID of the user who submitted the task
+        taskType:
+          type: string
+          description: Type of the task
+        taskText:
+          type: string
+          description: Original task text
+        taskData:
+          type: object
+          description: Parsed task data
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+          description: Current status of the task
+        result:
+          type: object
+          description: Task result (if completed)
+        error:
+          type: string
+          description: Error message (if failed)
+        createdAt:
+          type: string
+          format: date-time
+          description: Task creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Task last update timestamp
+      required:
+        - id
+        - taskType
+        - taskText
+        - status
+        - createdAt
+
+    TaskResult:
+      type: object
+      properties:
+        result:
+          type: object
+          description: Task execution result
+        status:
+          type: string
+          enum: [success, error]
+          description: Execution status
+      required:
+        - result
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error details
+      required:
+        - error
+        - message
