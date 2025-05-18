@@ -1,0 +1,95 @@
+{
+  "vendors": {
+    "VinSolutions": {
+      "emailPatterns": {
+        "fromAddresses": ["reports@vinsolutions.com", "no-reply@vinsolutions.com"],
+        "subjectPatterns": ["Daily Report", "Weekly Summary", "Monthly Analytics"],
+        "attachmentTypes": ["csv", "xlsx"]
+      },
+      "extractorConfig": {
+        "type": "csv",
+        "dateColumn": "Date",
+        "keyColumns": ["Customer", "Vehicle", "Status"],
+        "numericalColumns": ["Price", "DaysOnLot"],
+        "categoryColumns": ["LeadSource", "SalesPerson"]
+      },
+      "insightConfig": {
+        "priorityMetrics": ["conversion_rate", "days_on_lot", "lead_source_performance"],
+        "comparisonPeriods": ["daily", "weekly", "monthly"]
+      }
+    },
+    "VAUTO": {
+      "emailPatterns": {
+        "fromAddresses": ["reports@vauto.com", "analytics@vauto.com"],
+        "subjectPatterns": ["Inventory Report", "Pricing Analysis"],
+        "attachmentTypes": ["xlsx", "pdf"]
+      },
+      "extractorConfig": {
+        "type": "excel",
+        "sheets": ["Summary", "Detail"],
+        "dateColumn": "Report Date",
+        "keyColumns": ["Stock#", "VIN", "Make", "Model"],
+        "numericalColumns": ["Price", "Cost", "Age"],
+        "categoryColumns": ["Category", "Source"]
+      },
+      "insightConfig": {
+        "priorityMetrics": ["inventory_turnover", "price_to_market", "cost_analysis"],
+        "comparisonPeriods": ["weekly", "monthly"]
+      }
+    },
+    "DealerTrack": {
+      "emailPatterns": {
+        "fromAddresses": ["reports@dealertrack.com", "noreply@dealertrack.com"],
+        "subjectPatterns": ["F&I Report", "Finance Summary", "Daily Transactions"],
+        "attachmentTypes": ["xlsx", "pdf", "csv"]
+      },
+      "extractorConfig": {
+        "type": "csv",
+        "dateColumn": "Transaction Date",
+        "keyColumns": ["Deal #", "Customer Name", "Vehicle"],
+        "numericalColumns": ["Amount", "Term", "Rate"],
+        "categoryColumns": ["Product", "Type"]
+      },
+      "insightConfig": {
+        "priorityMetrics": ["finance_penetration", "product_attachment", "gross_profit"],
+        "comparisonPeriods": ["daily", "weekly", "monthly"]
+      }
+    }
+  },
+  "distribution": {
+    "roles": {
+      "inventory": {
+        "emails": ["inventory-manager@dealership.com"],
+        "insightTypes": ["inventory_health", "pricing_strategy", "market_comparison"]
+      },
+      "sales": {
+        "emails": ["sales-manager@dealership.com", "team-leads@dealership.com"],
+        "insightTypes": ["lead_performance", "conversion_metrics", "sales_trends"]
+      },
+      "finance": {
+        "emails": ["finance-director@dealership.com"],
+        "insightTypes": ["finance_performance", "product_penetration", "profitability"]
+      },
+      "executive": {
+        "emails": ["gm@dealership.com", "owner@dealership.com"],
+        "insightTypes": ["summary", "strategic_recommendations", "market_position"]
+      }
+    },
+    "schedules": {
+      "daily": {
+        "time": "08:00",
+        "roles": ["sales", "inventory"]
+      },
+      "weekly": {
+        "time": "08:00",
+        "dayOfWeek": "Monday",
+        "roles": ["sales", "inventory", "finance", "executive"] 
+      },
+      "monthly": {
+        "time": "09:00",
+        "dayOfMonth": "1",
+        "roles": ["executive", "finance"]
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "VinSolutions": {
+    "baseUrl": "https://crm.vinsolutions.com/login",
+    "hasOTP": true,
+    "selectors": {
+      "username": "#username",
+      "password": "#password",
+      "loginButton": "button[type='submit']",
+      "otpInput": "input[name='otp']",
+      "otpSubmit": "button:has-text('Verify')"
+    },
+    "loginSteps": [
+      { "action": "goto", "args": ["https://crm.vinsolutions.com/login"] },
+      { "action": "fill", "selector": "#username", "value": "{{VIN_SOLUTIONS_USERNAME}}" },
+      { "action": "fill", "selector": "#password", "value": "{{VIN_SOLUTIONS_PASSWORD}}" },
+      { "action": "click", "selector": "button[type='submit']" }
+    ],
+    "otpStep": {
+      "action": "otpEmail",
+      "selector": "input[name='otp']",
+      "clickAfter": "button:has-text('Verify')"
+    },
+    "navigationSteps": [
+      { "action": "click", "selector": "nav >> text=Insights" },
+      { "action": "click", "selector": "label:has-text('Most Popular')" }
+    ],
+    "downloadSteps": [
+      {
+        "action": "download",
+        "rowSelector": "tr:has-text('Dealership Performance Dashboard')",
+        "buttonSelector": "button[aria-label='Download']",
+        "saveAs": "report.csv"
+      }
+    ]
+  },
+  "VAUTO": {
+    "baseUrl": "https://login.vauto.com",
+    "hasOTP": false,
+    "selectors": {
+      "username": "input[name='username']",
+      "password": "input[name='password']",
+      "loginButton": "button#loginButton"
+    },
+    "loginSteps": [
+      { "action": "goto", "args": ["https://login.vauto.com"] },
+      { "action": "fill", "selector": "input[name='username']", "value": "{{VAUTO_USERNAME}}" },
+      { "action": "fill", "selector": "input[name='password']", "value": "{{VAUTO_PASSWORD}}" },
+      { "action": "click", "selector": "button#loginButton" }
+    ],
+    "navigationSteps": [
+      { "action": "click", "selector": "a:has-text('Reports')" },
+      { "action": "click", "selector": "span:has-text('Inventory Reports')" }
+    ],
+    "downloadSteps": [
+      {
+        "action": "download",
+        "rowSelector": "div.report-item:has-text('Inventory Health Report')",
+        "buttonSelector": "button.download-btn",
+        "saveAs": "vauto-report.csv"
+      }
+    ]
+  }
+}

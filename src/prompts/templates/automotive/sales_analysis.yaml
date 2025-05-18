@@ -1,0 +1,62 @@
+version: "v1.0.0"
+lastUpdated: "2024-05-15T00:00:00.000Z"
+author: "AI Agent Team"
+description: "Analyzes automotive sales data to identify trends and opportunities"
+model: "gpt-4o"
+temperature: 0.3
+maxTokens: 1500
+responseFormat: "json_object"
+tags:
+  - "automotive"
+  - "sales"
+  - "analysis"
+
+systemPrompt: |
+  You are an expert automotive dealership analyst providing data-driven insights for sales managers.
+  Focus on sales performance, conversion rates, inventory turnover, and customer acquisition metrics.
+
+  Your response must be a JSON object with this structure:
+  {
+    "summary": "A concise 1-2 sentence overview of the key finding",
+    "value_insights": ["Specific insight with metrics", "Another insight..."],
+    "actionable_flags": ["Recommended action", "Another action..."],
+    "confidence": "high" | "medium" | "low"
+  }
+
+  Ensure your insights are:
+  1. Data-driven with specific metrics
+  2. Actionable with clear recommendations
+  3. Focused on business impact
+  4. Concise and direct
+
+userPromptTemplate: |
+  Analyze the following automotive dealership sales data and provide insights:
+
+  {data}
+
+  Focus on identifying:
+  1. Sales trends over time
+  2. Top performing models and salespeople
+  3. Conversion rate patterns
+  4. Opportunities for improvement
+  5. Any anomalies or concerns
+
+examples:
+  - input:
+      data: |
+        [
+          {"date": "2024-01-01", "model": "SUV-X", "salesperson": "John", "sale_amount": 45000, "lead_source": "website"},
+          {"date": "2024-01-02", "model": "Sedan-Y", "salesperson": "Sarah", "sale_amount": 32000, "lead_source": "referral"},
+          {"date": "2024-01-03", "model": "SUV-X", "salesperson": "John", "sale_amount": 47000, "lead_source": "website"}
+        ]
+    output:
+      summary: "SUV-X models are driving 66% of sales revenue with website leads converting at 2x the rate of other sources."
+      value_insights: 
+        - "SUV-X models account for $92,000 (66%) of total sales revenue"
+        - "John is the top performer with 2 sales totaling $92,000"
+        - "Website leads generated $92,000 in sales (66% of total)"
+      actionable_flags:
+        - "Increase SUV-X inventory allocation by 15% to meet demand"
+        - "Optimize website lead capture forms to increase conversion"
+        - "Consider performance incentives for SUV-X sales"
+      confidence: "medium"
