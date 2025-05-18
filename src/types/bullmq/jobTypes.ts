@@ -1,22 +1,20 @@
 /**
- * Job Type Definitions for BullMQ
+ * Job type definitions for BullMQ
  * 
- * This file contains type definitions for all job types used in the application.
- * Each job type has a specific data structure and processing requirements.
+ * This file contains the type definitions for all job data types used in the application.
+ * Each job type extends the BaseJobData interface.
  */
 
 import { BaseJobData } from './baseTypes';
 
 /**
- * Email Job Data
- * 
- * Represents the data structure for email sending jobs
+ * Email job data interface
  */
 export interface EmailJobData extends BaseJobData {
   /**
-   * Email recipient(s)
+   * Email recipient
    */
-  to: string | string[] | { email: string; name?: string }[];
+  to: string | string[];
   
   /**
    * Email subject
@@ -24,38 +22,22 @@ export interface EmailJobData extends BaseJobData {
   subject: string;
   
   /**
-   * Email content
+   * Email body content
    */
-  content: {
-    /**
-     * Plain text version of the email
-     */
-    text?: string;
-    
-    /**
-     * HTML version of the email
-     */
-    html?: string;
-  };
+  body: string;
   
   /**
-   * Optional CC recipients
+   * Email template ID (if using a template)
    */
-  cc?: string | string[] | { email: string; name?: string }[];
+  templateId?: string;
   
   /**
-   * Optional BCC recipients
+   * Template variables
    */
-  bcc?: string | string[] | { email: string; name?: string }[];
+  templateVars?: Record<string, any>;
   
   /**
-   * Optional email sender
-   * If not provided, the default system sender will be used
-   */
-  from?: { email: string; name?: string };
-  
-  /**
-   * Optional attachments
+   * Email attachments
    */
   attachments?: Array<{
     filename: string;
@@ -64,136 +46,160 @@ export interface EmailJobData extends BaseJobData {
   }>;
   
   /**
-   * Optional metadata for tracking and analytics
+   * CC recipients
    */
-  metadata?: Record<string, any>;
+  cc?: string | string[];
+  
+  /**
+   * BCC recipients
+   */
+  bcc?: string | string[];
+  
+  /**
+   * Reply-to address
+   */
+  replyTo?: string;
 }
 
 /**
- * Insight Job Data
- * 
- * Represents the data structure for insight generation jobs
+ * Insight job data interface
  */
 export interface InsightJobData extends BaseJobData {
   /**
-   * ID of the report to generate insights for
+   * Type of insight to generate
    */
-  reportId: string;
+  insightType: 'daily' | 'weekly' | 'monthly' | 'custom';
   
   /**
-   * Platform or source of the report
+   * Data source for the insight
    */
-  platform: string;
+  dataSource: string;
   
   /**
-   * Optional role for targeted insight generation
+   * Query parameters for the insight
    */
-  role?: 'Executive' | 'Sales' | 'Lot';
+  queryParams: Record<string, any>;
   
   /**
-   * Whether to save the generated insights
+   * Date range for the insight
    */
-  saveResults?: boolean;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
   
   /**
-   * Whether to evaluate the quality of the insights
+   * Output format
    */
-  evaluateQuality?: boolean;
+  outputFormat?: 'json' | 'csv' | 'pdf';
   
   /**
-   * Whether to assess the business impact of the insights
+   * Whether to send notification when complete
    */
-  assessBusinessImpact?: boolean;
+  notify?: boolean;
+  
+  /**
+   * Notification recipients
+   */
+  notifyRecipients?: string[];
 }
 
 /**
- * Workflow Job Data
- * 
- * Represents the data structure for workflow execution jobs
+ * Workflow job data interface
  */
 export interface WorkflowJobData extends BaseJobData {
   /**
-   * ID of the workflow to execute
+   * Workflow template ID
    */
   workflowId: string;
   
   /**
-   * Optional step index to start from
-   * If not provided, execution will start from the current step
+   * Current step in the workflow
    */
-  startFromStep?: number;
+  currentStep?: number;
   
   /**
-   * Optional context data to be merged with the workflow context
+   * Total steps in the workflow
    */
-  contextData?: Record<string, any>;
+  totalSteps?: number;
   
   /**
-   * Optional user ID associated with the workflow
+   * Input data for the workflow
    */
-  userId?: string;
+  input: Record<string, any>;
+  
+  /**
+   * Context data for the workflow
+   */
+  context?: Record<string, any>;
+  
+  /**
+   * Step results
+   */
+  stepResults?: Record<string, any>[];
 }
 
 /**
- * Report Job Data
- * 
- * Represents the data structure for report processing jobs
+ * Report job data interface
  */
 export interface ReportJobData extends BaseJobData {
   /**
-   * ID of the report to process
-   */
-  reportId: string;
-  
-  /**
-   * Type of report
+   * Report type
    */
   reportType: string;
   
   /**
-   * Source of the report
+   * Report parameters
    */
-  source: 'email' | 'api' | 'upload' | 'scheduled';
+  parameters: Record<string, any>;
   
   /**
-   * Optional processing options
+   * Output format
    */
-  options?: {
-    /**
-     * Whether to generate insights after processing
-     */
-    generateInsights?: boolean;
-    
-    /**
-     * Whether to notify users after processing
-     */
-    notifyUsers?: boolean;
-    
-    /**
-     * Optional format for export
-     */
-    exportFormat?: 'csv' | 'json' | 'pdf';
-  };
+  format: 'pdf' | 'csv' | 'xlsx' | 'json';
+  
+  /**
+   * Whether to send the report via email
+   */
+  sendEmail?: boolean;
+  
+  /**
+   * Email recipients if sending via email
+   */
+  emailRecipients?: string[];
+  
+  /**
+   * Storage location for the report
+   */
+  storageLocation?: string;
 }
 
 /**
- * Task Job Data
- * 
- * Represents the data structure for generic task processing jobs
+ * Task job data interface
  */
 export interface TaskJobData extends BaseJobData {
   /**
-   * ID of the task to process
+   * Task type
    */
-  taskId: string;
+  taskType: string;
   
   /**
-   * Type of task
+   * Task parameters
    */
-  taskType?: 'scheduledWorkflow' | 'genericTask';
+  params: Record<string, any>;
   
   /**
-   * Optional workflow ID if the task is related to a workflow
+   * Whether the task is scheduled
    */
-  workflowId?: string;
+  scheduled?: boolean;
+  
+  /**
+   * Cron expression for scheduled tasks
+   */
+  cronExpression?: string;
+  
+  /**
+   * Task timeout in milliseconds
+   */
+  timeout?: number;
 }

@@ -1,8 +1,7 @@
 /**
- * BullMQ Types Index
+ * BullMQ Types
  * 
- * This file exports all BullMQ-related types from a central location.
- * Import from this file to access all BullMQ type definitions.
+ * This file exports all BullMQ-related types from the various type files.
  */
 
 // Export base types
@@ -13,14 +12,3 @@ export * from './jobTypes';
 
 // Export queue types
 export * from './queueTypes';
-
-// Re-export essential BullMQ types for convenience
-export type {
-  Queue,
-  Worker,
-  QueueScheduler,
-  Job,
-  JobsOptions,
-  QueueOptions,
-  WorkerOptions
-} from 'bullmq';
