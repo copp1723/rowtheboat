@@ -1,10 +1,10 @@
 /**
  * Monitoring Configuration
- * 
+ *
  * This module provides configuration for monitoring and alerting services.
  */
 import { z } from 'zod';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger';
 
 // Sentry configuration schema
 export const SentryConfigSchema = z.object({
@@ -55,14 +55,14 @@ export function loadMonitoringConfig(): MonitoringConfig {
     const sentryConfig = SentryConfigSchema.parse({
       dsn: process.env.SENTRY_DSN,
       environment: process.env.NODE_ENV || 'development',
-      tracesSampleRate: process.env.SENTRY_TRACES_SAMPLE_RATE 
-        ? parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE) 
+      tracesSampleRate: process.env.SENTRY_TRACES_SAMPLE_RATE
+        ? parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE)
         : 0.2,
-      profilesSampleRate: process.env.SENTRY_PROFILES_SAMPLE_RATE 
-        ? parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE) 
+      profilesSampleRate: process.env.SENTRY_PROFILES_SAMPLE_RATE
+        ? parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE)
         : 0.1,
     });
-    
+
     // Load DataDog configuration
     const datadogConfig = DataDogConfigSchema.parse({
       apiKey: process.env.DD_API_KEY,
@@ -70,35 +70,35 @@ export function loadMonitoringConfig(): MonitoringConfig {
       service: process.env.DD_SERVICE || 'agentflow',
       env: process.env.NODE_ENV || 'development',
       host: process.env.DD_AGENT_HOST || 'localhost',
-      metricInterval: process.env.DD_METRIC_INTERVAL 
-        ? parseInt(process.env.DD_METRIC_INTERVAL, 10) 
+      metricInterval: process.env.DD_METRIC_INTERVAL
+        ? parseInt(process.env.DD_METRIC_INTERVAL, 10)
         : 10,
     });
-    
+
     // Load alert thresholds
     const alertThresholds = AlertThresholdsSchema.parse({
-      errorRate: process.env.ERROR_RATE_THRESHOLD 
-        ? parseFloat(process.env.ERROR_RATE_THRESHOLD) 
+      errorRate: process.env.ERROR_RATE_THRESHOLD
+        ? parseFloat(process.env.ERROR_RATE_THRESHOLD)
         : 0.05,
-      dbQueryDuration: process.env.DB_QUERY_DURATION_THRESHOLD 
-        ? parseInt(process.env.DB_QUERY_DURATION_THRESHOLD, 10) 
+      dbQueryDuration: process.env.DB_QUERY_DURATION_THRESHOLD
+        ? parseInt(process.env.DB_QUERY_DURATION_THRESHOLD, 10)
         : 1000,
-      apiResponseTime: process.env.API_RESPONSE_TIME_THRESHOLD 
-        ? parseInt(process.env.API_RESPONSE_TIME_THRESHOLD, 10) 
+      apiResponseTime: process.env.API_RESPONSE_TIME_THRESHOLD
+        ? parseInt(process.env.API_RESPONSE_TIME_THRESHOLD, 10)
         : 2000,
-      memoryUsage: process.env.MEMORY_USAGE_THRESHOLD 
-        ? parseInt(process.env.MEMORY_USAGE_THRESHOLD, 10) 
+      memoryUsage: process.env.MEMORY_USAGE_THRESHOLD
+        ? parseInt(process.env.MEMORY_USAGE_THRESHOLD, 10)
         : 800,
-      cpuUsage: process.env.CPU_USAGE_THRESHOLD 
-        ? parseInt(process.env.CPU_USAGE_THRESHOLD, 10) 
+      cpuUsage: process.env.CPU_USAGE_THRESHOLD
+        ? parseInt(process.env.CPU_USAGE_THRESHOLD, 10)
         : 90,
     });
-    
+
     // Load admin emails
-    const adminEmails = process.env.ADMIN_EMAILS 
-      ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim()) 
+    const adminEmails = process.env.ADMIN_EMAILS
+      ? process.env.ADMIN_EMAILS.split(',').map(email => email.trim())
       : [];
-    
+
     // Combine all configurations
     return MonitoringConfigSchema.parse({
       enabled: process.env.MONITORING_ENABLED !== 'false',
@@ -107,18 +107,18 @@ export function loadMonitoringConfig(): MonitoringConfig {
       alertThresholds,
       adminEmails,
     });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      logger.error('Monitoring configuration validation failed:', {
-        issues: error.issues.map(issue => ({
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      error('Monitoring configuration validation failed:', {
+        issues: err.issues.map(issue => ({
           path: issue.path.join('.'),
           message: issue.message
         }))
       });
     } else {
-      logger.error('Failed to load monitoring configuration:', error);
+      error('Failed to load monitoring configuration:', err);
     }
-    
+
     // Return default configuration
     return MonitoringConfigSchema.parse({});
   }

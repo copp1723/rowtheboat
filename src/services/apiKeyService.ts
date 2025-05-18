@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../shared/db.js';
 import { apiKeys } from '../shared/schema.js';
 import { encryptData, decryptData, isEncryptionConfigured } from '../utils/encryption.js';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger';
 import { isError } from '../utils/errorUtils.js';
 
 /**
@@ -42,7 +42,7 @@ export async function addApiKey(
 ): Promise<any> {
   // Verify encryption is configured properly
   if (!isEncryptionConfigured()) {
-    logger.warn('Warning: Using default encryption key. Set ENCRYPTION_KEY in production.');
+    warn('Warning: Using default encryption key. Set ENCRYPTION_KEY in production.');
   }
 
   try {
@@ -73,15 +73,15 @@ export async function addApiKey(
     // Insert into database
     const [createdApiKey] = await db.insert(apiKeys).values(apiKey).returning();
     return createdApiKey;
-  } catch (error) {
-    const errorMessage = isError(error) 
-      ? error instanceof Error 
-        ? error.message 
-        : String(error) 
-      : String(error);
-    
-    logger.error(`Error adding API key: ${errorMessage}`);
-    throw error;
+  } catch (err) {
+    const errorMessage = isError(err)
+      ? err instanceof Error
+        ? err.message
+        : String(err)
+      : String(err);
+
+    error(`Error adding API key: ${errorMessage}`);
+    throw err;
   }
 }
 
@@ -103,7 +103,7 @@ export async function getApiKeys(userId: string, service?: string): Promise<any[
     }
 
     const results = await query;
-    
+
     // Remove sensitive data from results
     return results.map(key => ({
       id: key.id,
@@ -117,15 +117,15 @@ export async function getApiKeys(userId: string, service?: string): Promise<any[
       // Mask the key value for security
       keyValue: maskApiKey(key.keyValue),
     }));
-  } catch (error) {
-    const errorMessage = isError(error) 
-      ? error instanceof Error 
-        ? error.message 
-        : String(error) 
-      : String(error);
-    
-    logger.error(`Error getting API keys: ${errorMessage}`);
-    throw error;
+  } catch (err) {
+    const errorMessage = isError(err)
+      ? err instanceof Error
+        ? err.message
+        : String(err)
+      : String(err);
+
+    error(`Error getting API keys: ${errorMessage}`);
+    throw err;
   }
 }
 
@@ -157,15 +157,15 @@ export async function getApiKeyById(id: string, userId: string): Promise<any> {
       keyValue: maskApiKey(apiKey.keyValue),
       additionalData,
     };
-  } catch (error) {
-    const errorMessage = isError(error) 
-      ? error instanceof Error 
-        ? error.message 
-        : String(error) 
-      : String(error);
-    
-    logger.error(`Error getting API key by ID: ${errorMessage}`);
-    throw error;
+  } catch (err) {
+    const errorMessage = isError(err)
+      ? err instanceof Error
+        ? err.message
+        : String(err)
+      : String(err);
+
+    error(`Error getting API key by ID: ${errorMessage}`);
+    throw err;
   }
 }
 
@@ -237,15 +237,15 @@ export async function updateApiKey(
       ...updatedApiKey,
       keyValue: maskApiKey(updatedApiKey.keyValue),
     };
-  } catch (error) {
-    const errorMessage = isError(error) 
-      ? error instanceof Error 
-        ? error.message 
-        : String(error) 
-      : String(error);
-    
-    logger.error(`Error updating API key: ${errorMessage}`);
-    throw error;
+  } catch (err) {
+    const errorMessage = isError(err)
+      ? err instanceof Error
+        ? err.message
+        : String(err)
+      : String(err);
+
+    error(`Error updating API key: ${errorMessage}`);
+    throw err;
   }
 }
 
@@ -263,15 +263,15 @@ export async function deleteApiKey(id: string, userId: string): Promise<boolean>
       .returning({ id: apiKeys.id });
 
     return result.length > 0;
-  } catch (error) {
-    const errorMessage = isError(error) 
-      ? error instanceof Error 
-        ? error.message 
-        : String(error) 
-      : String(error);
-    
-    logger.error(`Error deleting API key: ${errorMessage}`);
-    throw error;
+  } catch (err) {
+    const errorMessage = isError(err)
+      ? err instanceof Error
+        ? err.message
+        : String(err)
+      : String(err);
+
+    error(`Error deleting API key: ${errorMessage}`);
+    throw err;
   }
 }
 
@@ -282,10 +282,10 @@ export async function deleteApiKey(id: string, userId: string): Promise<boolean>
  */
 function maskApiKey(keyValue: string): string {
   if (!keyValue) return '';
-  
+
   // If key is very short, just return "****"
   if (keyValue.length < 8) return '****';
-  
+
   // Otherwise show first 4 and last 4 characters
   return `${keyValue.substring(0, 4)}...${keyValue.substring(keyValue.length - 4)}`;
 }

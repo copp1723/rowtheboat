@@ -1,11 +1,18 @@
-import { ERROR_CODES } from '../utils/errors.js';
-
-type ErrorCode = keyof typeof ERROR_CODES;
+/**
+ * Base error class for all application errors
+ */
+export interface AppError extends Error {
+  statusCode?: number;
+  isOperational?: boolean;
+  code?: string;
+  details?: unknown;
+  cause?: unknown;
+}
 
 /**
  * Base error class for all application errors
  */
-export class AppError extends Error {
+export class CodedError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
   public readonly context: Record<string, any>;
@@ -53,10 +60,11 @@ export class AppError extends Error {
     };
   }
 }
+
 /**
  * Error for invalid input data
  */
-export class ValidationError extends AppError {
+export class ValidationError extends CodedError {
   constructor(message: string, context: Record<string, any> = {}) {
     super(message, 400, true, {
       errorCode: 'VALIDATION_ERROR',
@@ -64,10 +72,11 @@ export class ValidationError extends AppError {
     });
   }
 }
+
 /**
  * Error for authentication failures
  */
-export class AuthenticationError extends AppError {
+export class AuthenticationError extends CodedError {
   constructor(message: string = 'Authentication failed', context: Record<string, any> = {}) {
     super(message, 401, true, {
       errorCode: 'AUTHENTICATION_FAILED',
@@ -75,39 +84,42 @@ export class AuthenticationError extends AppError {
     });
   }
 }
+
 /**
  * Error for authorization failures
  */
-export class AuthorizationError extends AppError {
+export class AuthorizationError extends CodedError {
   constructor(
     message: string = 'Insufficient permissions', 
     context: Record<string, any> = {}
   ) {
     super(message, 403, true, {
-      errorCode: 'INSUFFICIENT_PERMISSIONS',
+      errorCode: 'AUTHORIZATION_FAILED',
       ...context,
     });
   }
 }
+
 /**
  * Error for resource not found
  */
-export class NotFoundError extends AppError {
+export class NotFoundError extends CodedError {
   constructor(
     resource: string = 'Resource', 
     context: Record<string, any> = {}
   ) {
     super(`${resource} not found`, 404, true, {
-      errorCode: 'RESOURCE_NOT_FOUND',
+      errorCode: 'NOT_FOUND',
       resource,
       ...context,
     });
   }
 }
+
 /**
  * Error for database operations
  */
-export class DatabaseError extends AppError {
+export class DatabaseError extends CodedError {
   constructor(
     message: string = 'Database operation failed', 
     context: Record<string, any> = {}
@@ -118,10 +130,11 @@ export class DatabaseError extends AppError {
     });
   }
 }
+
 /**
  * Error for external service failures
  */
-export class ExternalServiceError extends AppError {
+export class ExternalServiceError extends CodedError {
   constructor(
     service: string, 
     message: string = 'External service error', 
@@ -134,10 +147,11 @@ export class ExternalServiceError extends AppError {
     });
   }
 }
+
 /**
  * Error for rate limiting
  */
-export class RateLimitError extends AppError {
+export class RateLimitError extends CodedError {
   constructor(
     limit: number,
     window: string,
@@ -156,10 +170,11 @@ export class RateLimitError extends AppError {
     );
   }
 }
+
 /**
  * Error for workflow execution failures
  */
-export class WorkflowError extends AppError {
+export class WorkflowError extends CodedError {
   constructor(
     workflowId: string,
     message: string = 'Workflow execution failed',
@@ -172,24 +187,26 @@ export class WorkflowError extends AppError {
     });
   }
 }
+
 /**
  * Error for email sending failures
  */
-export class EmailError extends AppError {
+export class EmailError extends CodedError {
   constructor(
     message: string = 'Failed to send email', 
     context: Record<string, any> = {}
   ) {
     super(message, 500, true, {
-      errorCode: 'EMAIL_SEND_ERROR',
+      errorCode: 'EMAIL_ERROR',
       ...context,
     });
   }
 }
+
 /**
  * Error for task parsing failures
  */
-export class TaskParsingError extends AppError {
+export class TaskParsingError extends CodedError {
   constructor(
     message: string = 'Failed to parse task', 
     context: Record<string, any> = {}
@@ -200,10 +217,11 @@ export class TaskParsingError extends AppError {
     });
   }
 }
+
 /**
  * Error for scheduler failures
  */
-export class SchedulerError extends AppError {
+export class SchedulerError extends CodedError {
   constructor(
     message: string = 'Scheduler error', 
     context: Record<string, any> = {}
@@ -214,10 +232,11 @@ export class SchedulerError extends AppError {
     });
   }
 }
+
 /**
  * Error for configuration issues
  */
-export class ConfigurationError extends AppError {
+export class ConfigurationError extends CodedError {
   constructor(
     message: string = 'Configuration error', 
     context: Record<string, any> = {}
@@ -228,10 +247,11 @@ export class ConfigurationError extends AppError {
     });
   }
 }
+
 /**
  * Error for unexpected internal errors
  */
-export class InternalError extends AppError {
+export class InternalError extends CodedError {
   constructor(
     message: string = 'An internal error occurred', 
     context: Record<string, any> = {}
@@ -284,7 +304,17 @@ export function toAppError(
   );
 }
 
-// Re-export error codes for convenience
-export { ERROR_CODES } from '../utils/errors.js';
-
-export type { ErrorCode } from '../utils/errors.js';
+type ErrorCode = 
+  | 'VALIDATION_ERROR'
+  | 'AUTHENTICATION_FAILED'
+  | 'AUTHORIZATION_FAILED'
+  | 'NOT_FOUND'
+  | 'DATABASE_ERROR'
+  | 'EXTERNAL_SERVICE_ERROR'
+  | 'RATE_LIMIT_EXCEEDED'
+  | 'WORKFLOW_ERROR'
+  | 'EMAIL_ERROR'
+  | 'TASK_PARSING_ERROR'
+  | 'SCHEDULER_ERROR'
+  | 'CONFIGURATION_ERROR'
+  | 'INTERNAL_ERROR';
