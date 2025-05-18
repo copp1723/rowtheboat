@@ -4,7 +4,7 @@
  * Manages job queues and provides a unified interface for enqueueing jobs
  * Handles job scheduling, tracking, and persistence
  */
-import { Queue, JobsOptions } from 'bullmq';
+import { JobsOptions } from 'bullmq';
 import { getErrorMessage } from '../utils/errorUtils.js';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger.js';
@@ -19,25 +19,45 @@ import {
   JOB_TYPES,
   defaultJobOptions,
 } from './bullmqService.js';
-// Queue instances
-let ingestionQueue: Queue | null = null;
-let processingQueue: Queue | null = null;
-let emailQueue: Queue | null = null;
-let insightQueue: Queue | null = null;
+
+// Import the centralized BullMQ types
+import {
+  Queue,
+  EmailQueue,
+  InsightQueue,
+  ReportQueue,
+  WorkflowQueue,
+  EmailJobData,
+  InsightJobData,
+  ReportJobData,
+  WorkflowJobData,
+  BaseJobData
+} from '../types/bullmq';
+
+// Queue instances with proper typing
+let ingestionQueue: Queue<ReportJobData> | null = null;
+let processingQueue: Queue<ReportJobData> | null = null;
+let emailQueue: EmailQueue | null = null;
+let insightQueue: InsightQueue | null = null;
+
 // In-memory job storage for fallback mode
-const inMemoryJobs: Array<{
+interface InMemoryJob {
   id: string;
   queueName: string;
   jobName: string;
-  data: any;
-  options: any;
+  data: BaseJobData;
+  options: JobsOptions;
   status: string;
   attempts: number;
   maxAttempts: number;
   createdAt: Date;
   updatedAt: Date;
   nextRunAt: Date;
-}> = [];
+}
+
+// In-memory jobs array
+const inMemoryJobs: InMemoryJob[] = [];
+
 // In-memory mode flag
 let inMemoryMode = false;
 /**
@@ -174,46 +194,52 @@ async function processInMemoryJob(job: any): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 /**
- * Add a job to a queue
+ * Add a job to a queue with type safety
  */
-export async function addJob(
+export async function addJob<T extends BaseJobData>(
   queueName: string,
   jobName: string,
-  data: any,
+  data: T,
   options: JobsOptions = {}
 ): Promise<string> {
   try {
     // Generate job ID
     const jobId = options.jobId || uuidv4();
+
     // Merge default options with provided options
     const jobOptions: JobsOptions = {
       ...defaultJobOptions,
       ...options,
       jobId,
     };
+
     // Add job to queue
     if (!inMemoryMode) {
-      let queue: Queue | null = null;
-      // Get the appropriate queue
+      // Get the appropriate queue with proper typing
+      let queue: Queue<any> | null = null;
+
       switch (queueName) {
         case QUEUE_NAMES.INGESTION:
-          queue = ingestionQueue;
+          queue = ingestionQueue as Queue<ReportJobData>;
           break;
         case QUEUE_NAMES.PROCESSING:
-          queue = processingQueue;
+          queue = processingQueue as Queue<ReportJobData>;
           break;
         case QUEUE_NAMES.EMAIL:
-          queue = emailQueue;
+          queue = emailQueue as Queue<EmailJobData>;
           break;
         case QUEUE_NAMES.INSIGHT:
-          queue = insightQueue;
+          queue = insightQueue as Queue<InsightJobData>;
           break;
       }
+
       if (!queue) {
         throw new Error(`Queue ${queueName} not found`);
       }
-      // Add job to queue
+
+      // Add job to queue with proper typing
       await queue.add(jobName, data, jobOptions);
+
       logger.info(
         {
           event: 'job_added',
@@ -239,6 +265,7 @@ export async function addJob(
         updatedAt: new Date(),
         nextRunAt: new Date(),
       });
+
       logger.info(
         {
           event: 'in_memory_job_added',
@@ -250,10 +277,11 @@ export async function addJob(
         `Added in-memory job ${jobId} (${jobName}) to queue ${queueName}`
       );
     }
+
     // Store job in database
     await db.insert(jobs).values({
       id: jobId,
-      taskId: data.taskId || null,
+      taskId: (data as any).taskId || null,
       status: 'pending',
       attempts: 0,
       maxAttempts: jobOptions.attempts || 3,
@@ -261,6 +289,7 @@ export async function addJob(
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -278,18 +307,19 @@ export async function addJob(
   }
 }
 /**
- * Add a repeatable job to a queue
+ * Add a repeatable job to a queue with type safety
  */
-export async function addRepeatedJob(
+export async function addRepeatedJob<T extends BaseJobData>(
   queueName: string,
   jobName: string,
-  data: any,
+  data: T,
   pattern: string,
   options: JobsOptions = {}
 ): Promise<string> {
   try {
     // Generate job ID
     const jobId = options.jobId || uuidv4();
+
     // Merge default options with provided options
     const jobOptions: JobsOptions = {
       ...defaultJobOptions,
@@ -299,29 +329,34 @@ export async function addRepeatedJob(
         pattern,
       },
     };
+
     // Add job to queue
     if (!inMemoryMode) {
-      let queue: Queue | null = null;
-      // Get the appropriate queue
+      // Get the appropriate queue with proper typing
+      let queue: Queue<any> | null = null;
+
       switch (queueName) {
         case QUEUE_NAMES.INGESTION:
-          queue = ingestionQueue;
+          queue = ingestionQueue as Queue<ReportJobData>;
           break;
         case QUEUE_NAMES.PROCESSING:
-          queue = processingQueue;
+          queue = processingQueue as Queue<ReportJobData>;
           break;
         case QUEUE_NAMES.EMAIL:
-          queue = emailQueue;
+          queue = emailQueue as Queue<EmailJobData>;
           break;
         case QUEUE_NAMES.INSIGHT:
-          queue = insightQueue;
+          queue = insightQueue as Queue<InsightJobData>;
           break;
       }
+
       if (!queue) {
         throw new Error(`Queue ${queueName} not found`);
       }
-      // Add repeatable job to queue
+
+      // Add repeatable job to queue with proper typing
       await queue.add(jobName, data, jobOptions);
+
       logger.info(
         {
           event: 'repeated_job_added',
@@ -349,6 +384,7 @@ export async function addRepeatedJob(
         updatedAt: new Date(),
         nextRunAt: new Date(),
       });
+
       logger.info(
         {
           event: 'in_memory_repeated_job_added',
@@ -361,10 +397,11 @@ export async function addRepeatedJob(
         `Added in-memory repeatable job ${jobId} (${jobName}) to queue ${queueName} with pattern ${pattern}`
       );
     }
+
     // Store job in database
     await db.insert(jobs).values({
       id: jobId,
-      taskId: data.taskId || null,
+      taskId: (data as any).taskId || null,
       status: 'pending',
       attempts: 0,
       maxAttempts: jobOptions.attempts || 3,
@@ -372,6 +409,7 @@ export async function addRepeatedJob(
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
