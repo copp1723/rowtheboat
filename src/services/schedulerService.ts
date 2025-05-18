@@ -469,8 +469,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
     const taskId = uuidv4();
     // Create a task log entry
     try {
-      await // @ts-ignore
-      db.insert(taskLogs).values({
+      await db.insert(taskLogs).values({
         id: taskId,
         taskType: 'scheduledWorkflow',
         taskText: `Run scheduled workflow: ${schedule.workflowId!}`,
@@ -497,8 +496,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
       );
       // Try with user_id if that's what's missing (detected from logs)
       try {
-        await // @ts-ignore
-        db.insert(taskLogs).values({
+        await db.insert(taskLogs).values({
           id: taskId,
           taskType: 'scheduledWorkflow',
           taskText: `Run scheduled workflow: ${schedule.workflowId!}`,

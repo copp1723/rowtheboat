@@ -11,6 +11,7 @@ import {
   integer,
   bigint,
   uniqueIndex,
+  decimal,
 } from 'drizzle-orm/pg-core';
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -353,36 +354,38 @@ export const circuitBreakerState = pgTable('circuit_breaker_state', {
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 // Types
-export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
-export type UpsertCredential = typeof credentials.$inferInsert;
-export type Credential = typeof credentials.$inferSelect;
-export type UpsertPlan = typeof plans.$inferInsert;
-export type Plan = typeof plans.$inferSelect;
-export type UpsertWorkflow = typeof workflows.$inferInsert;
-export type Workflow = typeof workflows.$inferSelect;
-export type UpsertSchedule = typeof schedules.$inferInsert;
-export type Schedule = typeof schedules.$inferSelect;
-export type UpsertEmailLog = typeof emailLogs.$inferInsert;
-export type EmailLog = typeof emailLogs.$inferSelect;
-export type UpsertEmailNotification = typeof emailNotifications.$inferInsert;
-export type EmailNotification = typeof emailNotifications.$inferSelect;
-export type UpsertHealthCheck = typeof healthChecks.$inferInsert;
-export type HealthCheck = typeof healthChecks.$inferSelect;
-export type UpsertHealthLog = typeof healthLogs.$inferInsert;
-export type HealthLog = typeof healthLogs.$inferSelect;
-export type UpsertEmail = typeof emails.$inferInsert;
-export type Email = typeof emails.$inferSelect;
-export type UpsertEmailQueue = typeof emailQueue.$inferInsert;
-export type EmailQueue = typeof emailQueue.$inferSelect;
-export type UpsertDealerCredential = typeof dealerCredentials.$inferInsert;
-export type DealerCredential = typeof dealerCredentials.$inferSelect;
-export type UpsertApiKey = typeof apiKeys.$inferInsert;
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type UpsertSecurityAuditLog = typeof securityAuditLogs.$inferInsert;
-export type SecurityAuditLog = typeof securityAuditLogs.$inferSelect;
-export type UpsertUserCredential = typeof userCredentials.$inferInsert;
-export type UserCredential = typeof userCredentials.$inferSelect;
+import { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+
+export type UpsertUser = InferInsertModel<typeof users>;
+export type User = InferSelectModel<typeof users>;
+export type UpsertCredential = InferInsertModel<typeof credentials>;
+export type Credential = InferSelectModel<typeof credentials>;
+export type UpsertPlan = InferInsertModel<typeof plans>;
+export type Plan = InferSelectModel<typeof plans>;
+export type UpsertWorkflow = InferInsertModel<typeof workflows>;
+export type Workflow = InferSelectModel<typeof workflows>;
+export type UpsertSchedule = InferInsertModel<typeof schedules>;
+export type Schedule = InferSelectModel<typeof schedules>;
+export type UpsertEmailLog = InferInsertModel<typeof emailLogs>;
+export type EmailLog = InferSelectModel<typeof emailLogs>;
+export type UpsertEmailNotification = InferInsertModel<typeof emailNotifications>;
+export type EmailNotification = InferSelectModel<typeof emailNotifications>;
+export type UpsertHealthCheck = InferInsertModel<typeof healthChecks>;
+export type HealthCheck = InferSelectModel<typeof healthChecks>;
+export type UpsertHealthLog = InferInsertModel<typeof healthLogs>;
+export type HealthLog = InferSelectModel<typeof healthLogs>;
+export type UpsertEmail = InferInsertModel<typeof emails>;
+export type Email = InferSelectModel<typeof emails>;
+export type UpsertEmailQueue = InferInsertModel<typeof emailQueue>;
+export type EmailQueue = InferSelectModel<typeof emailQueue>;
+export type UpsertDealerCredential = InferInsertModel<typeof dealerCredentials>;
+export type DealerCredential = InferSelectModel<typeof dealerCredentials>;
+export type UpsertApiKey = InferInsertModel<typeof apiKeys>;
+export type ApiKey = InferSelectModel<typeof apiKeys>;
+export type UpsertSecurityAuditLog = InferInsertModel<typeof securityAuditLogs>;
+export type SecurityAuditLog = InferSelectModel<typeof securityAuditLogs>;
+export type UpsertUserCredential = InferInsertModel<typeof userCredentials>;
+export type UserCredential = InferSelectModel<typeof userCredentials>;
 // IMAP filters for email ingestion
 export const imapFilters = pgTable(
   'imap_filters',
@@ -404,8 +407,8 @@ export const imapFilters = pgTable(
     uniqueIndex('idx_imap_filters_vendor_from').on(table.vendor, table.fromAddress),
   ]
 );
-export type UpsertImapFilter = typeof imapFilters.$inferInsert;
-export type ImapFilter = typeof imapFilters.$inferSelect;
+export type UpsertImapFilter = InferInsertModel<typeof imapFilters>;
+export type ImapFilter = InferSelectModel<typeof imapFilters>;
 // Failed emails table for error recovery
 export const failedEmails = pgTable(
   'failed_emails',
@@ -432,8 +435,8 @@ export const failedEmails = pgTable(
     index('idx_failed_emails_next_retry').on(table.nextRetryAt),
   ]
 );
-export type UpsertFailedEmail = typeof failedEmails.$inferInsert;
-export type FailedEmail = typeof failedEmails.$inferSelect;
+export type UpsertFailedEmail = InferInsertModel<typeof failedEmails>;
+export type FailedEmail = InferSelectModel<typeof failedEmails>;
 // Workflow step interfaces
 export type WorkflowStepType =
   | 'emailIngestion'
@@ -483,8 +486,8 @@ export const insightLogs = pgTable(
     index('idx_insight_logs_created_at_user_id').on(table.createdAt, table.userId!),
   ]
 );
-export type UpsertInsightLog = typeof insightLogs.$inferInsert;
-export type InsightLog = typeof insightLogs.$inferSelect;
+export type UpsertInsightLog = InferInsertModel<typeof insightLogs>;
+export type InsightLog = InferSelectModel<typeof insightLogs>;
 // Unencrypted credential data typings
 export interface CredentialData {
   username?: string;

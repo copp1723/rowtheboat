@@ -64,16 +64,15 @@ export async function sendEmail(options: EmailSendOptions): Promise<EmailLog> {
     : [options.to.email];
   try {
     // Create a log entry for this email attempt
-    const [logEntry] = await // @ts-ignore
-    db.insert(emailLogs).values({
+    await db.insert(emailLogs).values({
       id: logId,
-      workflowId: options.workflowId!,
+      workflowId: options.workflowId,
       status: 'pending',
       recipientEmail: Array.isArray(options.to) ? options.to[0].email : options.to.email,
       subject: options.content.subject,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // @ts-ignore - Ensuring all required properties are provided.returning();
+    });
     // Prepare email for SendGrid - we need to format according to SendGrid requirements
     // Create a message object with required fields
     const message: any = {

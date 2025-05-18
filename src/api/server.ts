@@ -188,15 +188,14 @@ async function startServer(): Promise<import('http').Server> {
       // Generate task ID
       const taskId = crypto.randomUUID();
       // Create the task object and insert into database
-      await // @ts-ignore
-      db.insert(taskLogs).values({
+      await db.insert(taskLogs).values({
         id: taskId,
         userId: req.user?.claims?.sub,
         taskType: parsedTask.type,
         taskText: task,
         taskData: parsedTask.parameters,
         status: 'pending',
-      } as any); // @ts-ignore - Ensuring all required properties are provided;
+      });
       // Enqueue the task for processing with job queue
       const jobId = await enqueueJob(taskId);
       console.log(`Task ${taskId} submitted and enqueued as job ${jobId}`);
@@ -228,15 +227,14 @@ async function startServer(): Promise<import('http').Server> {
       // Generate task ID
       const taskId = crypto.randomUUID();
       // Create the task object and insert into database
-      await // @ts-ignore
-      db.insert(taskLogs).values({
+      await db.insert(taskLogs).values({
         id: taskId,
         userId: req.user?.claims?.sub,
         taskType: parsedTask.type,
         taskText: task,
         taskData: parsedTask.parameters,
         status: 'pending',
-      } as any); // @ts-ignore - Ensuring all required properties are provided;
+      });
       // Enqueue the task with high priority (1 is highest)
       const jobId = await enqueueJob(taskId, 1);
       console.log(`Direct task ${taskId} submitted and enqueued as job ${jobId}`);
