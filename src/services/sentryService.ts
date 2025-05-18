@@ -5,11 +5,22 @@
  * It configures Sentry SDK, sets up error handlers, and provides utility functions
  * for capturing errors and custom events.
  */
+import { AppError } from '../shared/errorTypes';
+import { error, warn, info } from '../shared/logger';
 import * as Sentry from '@sentry/node';
+import { isError } from '../utils/errorUtils';
 import { ProfilingIntegration } from '@sentry/profiling-node';
-import { isError } from '../utils/errorUtils.js';
-import { logger } from '../shared/logger.js';
-import { AppError } from '../utils/errors.js';
+
+/**
+ * Custom error type for application errors
+ */
+// export interface AppError extends Error {
+//   statusCode?: number;
+//   isOperational?: boolean;
+//   code?: string;
+//   details?: unknown;
+//   cause?: unknown;
+// }
 
 // Environment-specific configuration
 const SENTRY_ENVIRONMENT = process.env.NODE_ENV || 'development';
@@ -30,7 +41,7 @@ export function initializeSentry(dsn?: string): boolean {
     const sentryDsn = dsn || process.env.SENTRY_DSN;
     
     if (!sentryDsn) {
-      logger.warn('Sentry DSN not provided, error tracking disabled');
+      warn('Sentry DSN not provided, error tracking disabled');
       return false;
     }
     
@@ -51,10 +62,15 @@ export function initializeSentry(dsn?: string): boolean {
       profilesSampleRate: SENTRY_PROFILES_SAMPLE_RATE,
     });
     
-    logger.info('Sentry initialized successfully');
+    info('Sentry initialized successfully');
     return true;
-  } catch (error) {
-    logger.error('Failed to initialize Sentry:', isError(error) ? error : String(error));
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    error('Failed to initialize Sentry', { 
+      event: 'sentry_init_error',
+      error: caughtError.message,
+      stack: caughtError.stack
+    });
     return false;
   }
 }
@@ -85,39 +101,33 @@ export function clearUserContext(): void {
  */
 export function captureError(error: unknown, context: Record<string, any> = {}): string {
   try {
-    // Convert to AppError for consistent handling
-    const appError = error instanceof AppError ? error : new AppError(
-      isError(error) ? error.message : String(error),
-      {
-        cause: error,
-        isOperational: false,
-      }
-    );
-    
-    // Add error context
-    Sentry.setContext('error_details', {
-      isOperational: appError.isOperational,
-      statusCode: appError.statusCode,
-      ...(appError.context || {}),
-    });
-    
-    // Add custom context
-    if (Object.keys(context).length > 0) {
-      Sentry.setContext('additional_context', context);
-    }
-    
-    // Capture the error
+    // Ensure the error is an AppError or convert it to one
+    const appError: AppError = error instanceof Error ? 
+      (error as AppError) : 
+      new Error(String(error)) as AppError;
+
+    // Set default properties if not already set
+    if (!appError.statusCode) appError.statusCode = 500;
+    if (appError.isOperational === undefined) appError.isOperational = false;
+
     const eventId = Sentry.captureException(appError);
     
     // Log that we've captured the error
-    logger.info(`Error captured in Sentry with ID: ${eventId}`);
+    info(`Error captured in Sentry with ID: ${eventId}`, {
+      event: 'sentry_capture',
+      errorId: eventId,
+      statusCode: appError.statusCode,
+      isOperational: appError.isOperational
+    });
     
     return eventId;
-  } catch (captureError) {
-    // If Sentry capture fails, just log it
-    logger.error('Failed to capture error in Sentry:', 
-      isError(captureError) ? captureError : String(captureError)
-    );
+  } catch (captureError: unknown) {
+    const caughtError = captureError instanceof Error ? captureError : new Error(String(captureError));
+    error('Failed to capture error in Sentry', {
+      event: 'sentry_capture_error',
+      error: caughtError.message,
+      stack: caughtError.stack
+    });
     return '';
   }
 }
@@ -129,24 +139,36 @@ export function captureError(error: unknown, context: Record<string, any> = {}):
  * @param context Additional context
  */
 export function captureMessage(
-  message: string, 
+  message: string | Error | unknown,
   level: Sentry.SeverityLevel = 'info',
   context: Record<string, any> = {}
 ): string {
   try {
+    if (!isSentryInitialized()) {
+      throw new Error('Sentry not initialized');
+    }
+
+    // Normalize the message to string
+    const normalizedMessage = typeof message === 'string' ? message : 
+      message instanceof Error ? message.message : 
+      String(message);
+
     // Add custom context
     if (Object.keys(context).length > 0) {
       Sentry.setContext('message_context', context);
     }
     
     // Capture the message
-    const eventId = Sentry.captureMessage(message, level);
+    const eventId = Sentry.captureMessage(normalizedMessage, level);
     
     return eventId;
-  } catch (error) {
-    logger.error('Failed to capture message in Sentry:', 
-      isError(error) ? error : String(error)
-    );
+  } catch (err) {
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    error('Failed to capture message in Sentry', {
+      event: 'sentry_message_error',
+      error: errorObj.message,
+      stack: errorObj.stack
+    });
     return '';
   }
 }
@@ -172,8 +194,13 @@ export async function flushSentryEvents(timeout: number = 2000): Promise<boolean
   try {
     const result = await Sentry.close(timeout);
     return result;
-  } catch (error) {
-    logger.error('Error flushing Sentry events:', isError(error) ? error : String(error));
+  } catch (err: unknown) {
+    const caughtError = err instanceof Error ? err : new Error(String(err));
+    error('Error flushing Sentry events', {
+      event: 'sentry_flush_error',
+      error: caughtError.message,
+      stack: caughtError.stack
+    });
     return false;
   }
 }
@@ -188,3 +215,7 @@ export default {
   createSentryErrorHandler,
   flushSentryEvents,
 };
+
+function isSentryInitialized(): boolean {
+  return Sentry.getCurrentHub().getClient() !== null;
+}
