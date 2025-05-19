@@ -1,29 +1,35 @@
 # Testing Guide
 
-This document provides comprehensive information about testing the AgentFlow application, including test structure, running tests, and writing new tests.
+This document provides comprehensive information about testing the Row The Boat application, including test structure, running tests, and writing new tests.
 
 ## Test Structure
 
-Tests are organized to mirror the source code structure:
+Tests are organized into the following categories:
 
 ```
-__tests__/
-├── agents/           # Tests for agent functionality
-├── api/              # Tests for API endpoints
-├── services/         # Tests for services
-├── shared/           # Tests for shared utilities
-└── utils/            # Tests for utility functions
+tests/
+├── unit/              # Unit tests
+├── integration/       # Integration tests
+│   ├── api/           # API endpoint tests
+│   ├── database/      # Database operation tests
+│   ├── services/      # Service integration tests
+│   └── utils/         # Test utilities
+└── e2e/               # End-to-end tests
 ```
 
-The project uses two types of tests:
+The project uses three types of tests:
 
 1. **Unit Tests**: Test individual components in isolation
    - File naming: `*.test.ts`
-   - Located alongside the code they test
+   - Located in `tests/unit/` or alongside the code they test
 
 2. **Integration Tests**: Test interactions between components
    - File naming: `*.spec.ts`
-   - Located in `src/__tests__/integration/`
+   - Located in `tests/integration/`
+
+3. **End-to-End Tests**: Test complete application flows
+   - File naming: `*.spec.ts`
+   - Located in `tests/e2e/`
 
 ## Running Tests
 
@@ -59,6 +65,14 @@ To run only integration tests:
 npm run test:integration
 ```
 
+### Running End-to-End Tests Only
+
+To run only end-to-end tests:
+
+```bash
+npm run test:e2e
+```
+
 ### Generating Coverage Reports
 
 To generate a test coverage report:
@@ -74,13 +88,13 @@ This will create a coverage report in the `coverage/` directory. You can open `c
 To run a specific test file:
 
 ```bash
-npm test -- src/__tests__/utils/encryption.test.ts
+npm test -- tests/integration/api/health.spec.ts
 ```
 
 To run tests matching a specific pattern:
 
 ```bash
-npm test -- -t "should encrypt and decrypt data"
+npm test -- -t "should return health status"
 ```
 
 ## Writing Tests
@@ -90,21 +104,22 @@ npm test -- -t "should encrypt and decrypt data"
 Each test file should follow this structure:
 
 ```typescript
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { functionToTest } from '../../path/to/module';
 
 // Optional: Mock dependencies
-jest.mock('dependency', () => ({
-  someFunction: jest.fn(),
+vi.mock('dependency', () => ({
+  someFunction: vi.fn(),
 }));
 
 describe('Module or Function Name', () => {
   // Optional: Setup before tests
-  beforeEach(() => {
+  beforeAll(() => {
     // Setup code
   });
 
   // Optional: Cleanup after tests
-  afterEach(() => {
+  afterAll(() => {
     // Cleanup code
   });
 
@@ -112,14 +127,14 @@ describe('Module or Function Name', () => {
     it('should do something specific', () => {
       // Arrange
       const input = 'test';
-      
+
       // Act
       const result = functionToTest(input);
-      
+
       // Assert
       expect(result).toBe(expectedOutput);
     });
-    
+
     // More test cases...
   });
 });
@@ -133,10 +148,10 @@ For testing asynchronous code:
 it('should handle async operations', async () => {
   // Arrange
   const input = 'test';
-  
+
   // Act
   const result = await asyncFunctionToTest(input);
-  
+
   // Assert
   expect(result).toBe(expectedOutput);
 });
@@ -144,53 +159,55 @@ it('should handle async operations', async () => {
 
 ### Mocking Dependencies
 
-For mocking external dependencies, use Jest's mocking capabilities:
+For mocking dependencies, use Vitest's mocking capabilities:
 
 ```typescript
 // Mock a module
-jest.mock('module-name');
+vi.mock('module-name');
 
 // Mock a specific function
-jest.spyOn(object, 'method').mockImplementation(() => mockReturnValue);
+vi.spyOn(object, 'method').mockImplementation(() => mockReturnValue);
 
 // Mock a function with different return values for each call
-const mockFn = jest.fn()
+const mockFn = vi.fn()
   .mockReturnValueOnce(value1)
   .mockReturnValueOnce(value2);
 ```
 
 ### Testing Database Operations
 
-For testing database operations, use the test database:
+For testing database operations:
 
 ```typescript
-import { db } from '../../shared/db';
-import { users } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { db } from '../../src/shared/db';
 
 describe('Database Operations', () => {
   // Clean up after tests
-  afterEach(async () => {
-    await db.delete(users).where(eq(users.id, 'test-user'));
+  afterAll(async () => {
+    await db.execute('DELETE FROM users WHERE email LIKE $1', ['test-%']);
   });
 
   it('should insert and retrieve a user', async () => {
     // Arrange
-    const user = {
-      id: 'test-user',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User'
-    };
+    const userId = 'test-user-id';
+    const email = 'test-user@example.com';
 
     // Act
-    await db.insert(users).values(user);
-    const result = await db.query.users.findFirst({
-      where: eq(users.id, 'test-user')
-    });
+    await db.execute(
+      'INSERT INTO users (id, email) VALUES ($1, $2)',
+      [userId, email]
+    );
+
+    const result = await db.execute(
+      'SELECT * FROM users WHERE id = $1',
+      [userId]
+    );
 
     // Assert
-    expect(result).toEqual(expect.objectContaining(user));
+    expect(result.rows[0]).toEqual(expect.objectContaining({
+      id: userId,
+      email: email,
+    }));
   });
 });
 ```
@@ -201,44 +218,59 @@ For testing API endpoints, use supertest:
 
 ```typescript
 import request from 'supertest';
-import { app } from '../../api/server';
+import { createTestServer, closeTestServer } from '../utils/testUtils';
 
 describe('API Endpoints', () => {
+  let app, server;
+
+  beforeAll(async () => {
+    const testServer = await createTestServer();
+    app = testServer.app;
+    server = testServer.server;
+  });
+
+  afterAll(async () => {
+    await closeTestServer(server);
+  });
+
   it('should return health status', async () => {
-    const response = await request(app).get('/api/health');
-    
+    const response = await request(app).get('/health');
+
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('status', 'ok');
+    expect(response.body).toHaveProperty('overallStatus', 'ok');
   });
 });
 ```
 
 ## Test Data
 
-### Fixtures
+### Test Fixtures
 
-Test fixtures are located in `__tests__/fixtures/` and provide sample data for tests:
+Test fixtures are located in `tests/integration/utils/testFixtures.ts` and provide sample data for tests:
 
 ```typescript
-// Import a fixture
-import { sampleReport } from '../fixtures/reports';
+import { createTestUser } from '../utils/testFixtures';
 
-// Use the fixture in a test
-it('should process a report', async () => {
-  const result = await processReport(sampleReport);
+it('should process a user', async () => {
+  const testUser = await createTestUser();
+  const result = await processUser(testUser);
   expect(result).toBeDefined();
 });
 ```
 
 ### Environment Variables for Testing
 
-Test-specific environment variables are set in `jest.setup.js`:
+Test-specific environment variables are set in `.env.test`:
 
-```javascript
-// Mock environment variables
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
-process.env.EKO_API_KEY = 'test-eko-api-key';
-// ...
+```
+# Test environment configuration
+NODE_ENV=test
+
+# Database configuration
+TEST_DATABASE_URL=postgresql://test:test@localhost:5432/test_db
+
+# Redis configuration
+TEST_REDIS_URL=redis://localhost:6379/1
 ```
 
 ## Testing Specific Components
@@ -287,7 +319,7 @@ To view the CI configuration, see `.github/workflows/ci.yml`.
 
 ## Test Coverage Goals
 
-We aim for at least 70% code coverage across:
+We aim for at least 80% code coverage across:
 - Statements
 - Branches
 - Functions
@@ -311,7 +343,7 @@ We aim for at least 70% code coverage across:
 If tests fail due to database connection issues:
 
 1. Verify that the test database exists and is accessible
-2. Check that the `DATABASE_URL` in `jest.setup.js` is correct
+2. Check that the `TEST_DATABASE_URL` in `.env.test` is correct
 3. Ensure that the database user has the necessary permissions
 
 ### Tests Timing Out
@@ -335,6 +367,6 @@ If mocks aren't working as expected:
 3. Reset mocks between tests:
    ```typescript
    afterEach(() => {
-     jest.resetAllMocks();
+     vi.resetAllMocks();
    });
    ```
