@@ -1,19 +1,19 @@
 /**
  * OpenAI Service
- * 
+ *
  * This service provides a centralized interface for interacting with the OpenAI API.
  * It handles authentication, error handling, retry logic, and audit logging.
  */
 import { OpenAI } from 'openai';
-import { getCredentialById } from '../../services/credentialVault.js';
-import { db } from '../../shared/db.js';
-import { insightLogs } from '../../shared/schema.js';
-import { logger } from '../../utils/logger.js';
-import { createCircuitBreaker } from '../../utils/circuitBreaker.js';
-import { isError } from '../../utils/errorUtils.js';
+import { getCredentialById } from '../../services/credentialVault';
+import { db } from '../../shared/db';
+import { insightLogs } from '../../shared/schema';
+import { debug, info, warn, error } from '../../shared/logger';
+import { CircuitBreaker } from '../../utils/circuitBreaker';
+import { isError } from '../../utils/errorUtils';
 
 // Circuit breaker for OpenAI API calls
-const openaiBreaker = createCircuitBreaker('openai-api', {
+const openaiBreaker = new CircuitBreaker('openai-api', {
   failureThreshold: 5,
   resetTimeout: 5 * 60 * 1000, // 5 minutes
 });
@@ -82,8 +82,8 @@ export class OpenAIService {
       this.apiKeyHint = apiKey.slice(-4);
 
       return true;
-    } catch (error) {
-      logger.error('Failed to initialize OpenAI client:', error);
+    } catch (err) {
+      error('Failed to initialize OpenAI client:', isError(err) ? err : String(err));
       return false;
     }
   }
@@ -108,8 +108,8 @@ export class OpenAIService {
       }
 
       return this.initialize(apiKey);
-    } catch (error) {
-      logger.error('Failed to initialize OpenAI client with credential:', error);
+    } catch (err) {
+      error('Failed to initialize OpenAI client with credential:', isError(err) ? err : String(err));
       return false;
     }
   }
@@ -144,9 +144,6 @@ export class OpenAIService {
 
     while (attempt < (this.options.maxRetries || 1)) {
       try {
-        // Check circuit breaker before making the request
-        await openaiBreaker.beforeRequest();
-
         // Prepare messages for OpenAI
         const messages = [
           {
@@ -164,67 +161,63 @@ export class OpenAIService {
           ? { type: options.responseFormat }
           : undefined;
 
-        // Call OpenAI API
-        const response = await this.client.chat.completions.create({
-          model,
-          messages,
-          temperature: options.temperature ?? 0.3,
-          max_tokens: options.maxTokens,
-          response_format: responseFormat as any,
-        });
-
-        // Parse the response
-        const content = response.choices[0].message.content;
-        if (!content) {
-          throw new Error('Empty response from OpenAI');
-        }
-
-        // Log successful request
-        if (this.options.enableAuditLogging) {
-          await this.logCompletion({
-            success: true,
-            durationMs: Date.now() - startTime,
-            role: options.role,
-            promptVersion: options.promptVersion,
-            rawResponse: response,
-            rawPrompt: JSON.stringify(messages),
-            userId: options.userId,
+        // Call OpenAI API with circuit breaker protection
+        const content = await openaiBreaker.execute(async () => {
+          const response = await this.client.chat.completions.create({
+            model,
+            messages,
+            temperature: options.temperature ?? 0.3,
+            max_tokens: options.maxTokens,
+            response_format: responseFormat as any,
           });
-        }
 
-        // Record success in circuit breaker
-        await openaiBreaker.afterSuccess();
+          // Parse the response
+          const content = response.choices[0].message.content;
+          if (!content) {
+            throw new Error('Empty response from OpenAI');
+          }
+
+          // Log successful request
+          if (this.options.enableAuditLogging) {
+            await this.logCompletion({
+              success: true,
+              durationMs: Date.now() - startTime,
+              role: options.role,
+              promptVersion: options.promptVersion,
+              rawResponse: response,
+              rawPrompt: JSON.stringify(messages),
+              userId: options.userId,
+            });
+          }
+
+          return content;
+        });
 
         return content;
       } catch (error) {
         attempt++;
         lastError = isError(error) ? error : new Error(String(error));
 
-        // Record failure in circuit breaker if not retrying
-        if (attempt >= (this.options.maxRetries || 1)) {
-          await openaiBreaker.afterFailure();
-
-          // Log failed request
-          if (this.options.enableAuditLogging) {
-            await this.logCompletion({
-              success: false,
-              durationMs: Date.now() - startTime,
-              role: options.role,
-              promptVersion: options.promptVersion,
-              error: lastError.message,
-              rawPrompt: JSON.stringify([
-                {
-                  role: 'system',
-                  content: options.systemPrompt || 'You are a helpful assistant.',
-                },
-                {
-                  role: 'user',
-                  content: prompt,
-                },
-              ]),
-              userId: options.userId,
-            });
-          }
+        // Log failed request if this is the last attempt
+        if (attempt >= (this.options.maxRetries || 1) && this.options.enableAuditLogging) {
+          await this.logCompletion({
+            success: false,
+            durationMs: Date.now() - startTime,
+            role: options.role,
+            promptVersion: options.promptVersion,
+            error: lastError.message,
+            rawPrompt: JSON.stringify([
+              {
+                role: 'system',
+                content: options.systemPrompt || 'You are a helpful assistant.',
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ]),
+            userId: options.userId,
+          });
         }
 
         // If we have more retries, wait before trying again
@@ -265,8 +258,8 @@ export class OpenAIService {
         apiKeyHint: this.apiKeyHint,
         userId: data.userId,
       });
-    } catch (error) {
-      logger.error('Failed to log completion:', error);
+    } catch (err) {
+      error('Failed to log completion:', isError(err) ? err : String(err));
     }
   }
 }

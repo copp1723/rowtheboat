@@ -1,12 +1,13 @@
 /**
  * LLM Audit Logger
- * 
+ *
  * This module provides comprehensive logging for LLM interactions,
  * including prompts, responses, and metadata for compliance and analysis.
  */
-import { db } from '../../shared/db.js';
-import { insightLogs } from '../../shared/schema.js';
-import { logger } from '../../utils/logger.js';
+import { db } from '../../shared/db';
+import { insightLogs } from '../../shared/schema';
+import { debug, info, warn, error } from '../../shared/logger';
+import { isError } from '../../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 
 /**
@@ -28,7 +29,7 @@ export interface LLMLogEntry {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
-  cost?: number;
+  cost?: string | number;
   metadata?: Record<string, any>;
 }
 
@@ -59,8 +60,8 @@ export async function logLLMInteraction(entry: LLMLogEntry): Promise<number | nu
     }).returning({ id: insightLogs.id });
 
     return result?.id || null;
-  } catch (error) {
-    logger.error('Failed to log LLM interaction:', error);
+  } catch (err) {
+    error('Failed to log LLM interaction:', isError(err) ? err : String(err));
     return null;
   }
 }
@@ -86,23 +87,23 @@ export async function getLLMUsageStats(options: {
   try {
     // Build the query conditions
     let conditions = sql`1=1`;
-    
+
     if (options.startDate) {
       conditions = sql`${conditions} AND created_at >= ${options.startDate}`;
     }
-    
+
     if (options.endDate) {
       conditions = sql`${conditions} AND created_at <= ${options.endDate}`;
     }
-    
+
     if (options.userId) {
       conditions = sql`${conditions} AND user_id = ${options.userId}`;
     }
-    
+
     if (options.model) {
       conditions = sql`${conditions} AND model = ${options.model}`;
     }
-    
+
     // Execute the query
     const [result] = await db
       .select({
@@ -115,7 +116,7 @@ export async function getLLMUsageStats(options: {
       })
       .from(insightLogs)
       .where(conditions);
-    
+
     return {
       totalRequests: Number(result?.totalRequests || 0),
       successfulRequests: Number(result?.successfulRequests || 0),
@@ -124,8 +125,8 @@ export async function getLLMUsageStats(options: {
       totalCost: Number(result?.totalCost || 0),
       averageLatency: Number(result?.averageLatency || 0),
     };
-  } catch (error) {
-    logger.error('Failed to get LLM usage stats:', error);
+  } catch (err) {
+    error('Failed to get LLM usage stats:', isError(err) ? err : String(err));
     return {
       totalRequests: 0,
       successfulRequests: 0,
@@ -153,23 +154,23 @@ export async function getRecentLLMInteractions(options: {
   try {
     // Build the query conditions
     let conditions = sql`1=1`;
-    
+
     if (options.userId) {
       conditions = sql`${conditions} AND user_id = ${options.userId}`;
     }
-    
+
     if (options.success !== undefined) {
       conditions = sql`${conditions} AND success = ${options.success}`;
     }
-    
+
     if (options.startDate) {
       conditions = sql`${conditions} AND created_at >= ${options.startDate}`;
     }
-    
+
     if (options.endDate) {
       conditions = sql`${conditions} AND created_at <= ${options.endDate}`;
     }
-    
+
     // Execute the query
     const results = await db
       .select()
@@ -178,7 +179,7 @@ export async function getRecentLLMInteractions(options: {
       .orderBy(sql`created_at DESC`)
       .limit(options.limit || 100)
       .offset(options.offset || 0);
-    
+
     return results.map(row => ({
       id: row.id,
       createdAt: row.createdAt,
@@ -198,8 +199,8 @@ export async function getRecentLLMInteractions(options: {
       cost: row.cost,
       metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined,
     }));
-  } catch (error) {
-    logger.error('Failed to get recent LLM interactions:', error);
+  } catch (err) {
+    error('Failed to get recent LLM interactions:', isError(err) ? err : String(err));
     return [];
   }
 }
@@ -224,13 +225,13 @@ export function calculateLLMCost(
     'gpt-3.5-turbo': { prompt: 0.0005, completion: 0.0015 },
     'gpt-3.5-turbo-16k': { prompt: 0.001, completion: 0.002 },
   };
-  
+
   // Get the pricing for the model or use a default
   const modelPricing = pricing[model] || { prompt: 0.01, completion: 0.03 };
-  
+
   // Calculate the cost
   const promptCost = (promptTokens / 1000) * modelPricing.prompt;
   const completionCost = (completionTokens / 1000) * modelPricing.completion;
-  
+
   return promptCost + completionCost;
 }
