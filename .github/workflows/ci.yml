@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint . --ext .ts,.tsx,.js,.jsx
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:6
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test environment file
+        run: |
+          echo "NODE_ENV=test" > .env.test
+          echo "TEST_DATABASE_URL=postgresql://test:test@localhost:5432/test_db" >> .env.test
+          echo "TEST_REDIS_URL=redis://localhost:6379/1" >> .env.test
+          echo "JWT_SECRET=test-jwt-secret" >> .env.test
+          echo "ENCRYPTION_KEY=01234567890123456789012345678901" >> .env.test
+          echo "LOG_LEVEL=error" >> .env.test
+          echo "LOG_FORMAT=json" >> .env.test
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  type-safety-audit:
+    name: Type Safety Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for any usage
+        run: |
+          echo "Checking for explicit 'any' usage..."
+          ! grep -r --include="*.ts" --include="*.tsx" "any" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// \[EXCEPTION-" | grep -v "eslint-disable"
+        continue-on-error: true
+
+      - name: Check for ts-ignore usage
+        run: |
+          echo "Checking for @ts-ignore usage..."
+          ! grep -r --include="*.ts" --include="*.tsx" "@ts-ignore" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// @ts-ignore: \[EXCEPTION-"
+        continue-on-error: true
+
+      - name: Generate type safety report
+        run: |
+          echo "# Type Safety Report" > type-safety-report.md
+          echo "## Explicit 'any' usage" >> type-safety-report.md
+          grep -r --include="*.ts" --include="*.tsx" "any" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// \[EXCEPTION-" | grep -v "eslint-disable" >> type-safety-report.md || echo "No unauthorized 'any' usage found." >> type-safety-report.md
+          echo "## @ts-ignore usage" >> type-safety-report.md
+          grep -r --include="*.ts" --include="*.tsx" "@ts-ignore" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// @ts-ignore: \[EXCEPTION-" >> type-safety-report.md || echo "No unauthorized @ts-ignore usage found." >> type-safety-report.md
+
+      - name: Upload type safety report
+        uses: actions/upload-artifact@v3
+        with:
+          name: type-safety-report
+          path: type-safety-report.md
