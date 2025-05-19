@@ -7,13 +7,13 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../../../../shared/logger.js';
-import { fetchEmailsWithAttachments } from '../../../../services/imapIngestionService.js';
-import { parseByExtension } from '../../../../services/attachmentParsers.js';
-import { storeResults } from '../../../../services/resultsPersistence.js';
-import { generateInsights } from '../../../../services/insightGenerator.js';
-import { sendAdminAlert } from '../../../../services/alertMailer.js';
-import { isError } from '../../../../utils/errorUtils.js';
+import { debug, info, warn, error } from '../../../../shared/logger';
+import { fetchEmailsWithAttachments } from '../../../../services/imapIngestionService';
+import { parseByExtension } from '../../../../services/attachmentParsers';
+import { storeResults } from '../../../../services/resultsPersistence';
+import { generateInsights } from '../../../../services/insightGenerator';
+import { sendAdminAlert } from '../../../../services/alertMailer';
+import { isError } from '../../../../utils/errorUtils';
 // Types
 export interface EmailIngestOptions {
   intent?: string;
@@ -54,7 +54,7 @@ export async function ingestReportFromEmail(
   options: EmailIngestOptions = {}
 ): Promise<EmailIngestResult> {
   const startTime = Date.now();
-  logger.info(`Starting email ingestion for ${platform}`);
+  info(`Starting email ingestion for ${platform}`);
   // Set default options
   const downloadDir = options.downloadDir || './downloads';
   const intent = options.intent! || 'sales_report';
@@ -66,30 +66,30 @@ export async function ingestReportFromEmail(
       fs.mkdirSync(downloadDir, { recursive: true });
     }
     // Fetch emails with attachments
-    logger.info(`Fetching emails for ${platform}...`);
+    info(`Fetching emails for ${platform}...`);
     const emailResults = await fetchEmailsWithAttachments(platform, downloadDir, {
       batchSize: options.batchSize,
       maxResults: options.maxResults,
       markSeen: options.markSeen,
     });
-    logger.info(`Found ${emailResults.length} emails with attachments for ${platform}`);
+    info(`Found ${emailResults.length} emails with attachments for ${platform}`);
     // Process each email result
     const results: EmailIngestResult[] = [];
     for (const emailResult of emailResults) {
       const { filePaths, emailMetadata } = emailResult;
       for (const filePath of filePaths) {
         try {
-          logger.info(`Processing attachment: ${path.basename(filePath)}`);
+          info(`Processing attachment: ${path.basename(filePath)}`);
           // Parse the attachment
           const parsedData = await parseByExtension(filePath, {
             vendor: platform,
             reportType: intent,
           });
-          logger.info(`Successfully parsed ${parsedData.recordCount} records from ${path.basename(filePath)}`);
+          info(`Successfully parsed ${parsedData.recordCount} records from ${path.basename(filePath)}`);
           // Store results if requested
           let storageResult;
           if (storeResultsFlag) {
-            logger.info(`Storing results for ${platform}`);
+            info(`Storing results for ${platform}`);
             storageResult = await storeResults(platform, parsedData, {
               sourceType: 'email',
               emailSubject: emailMetadata.subject,
@@ -101,17 +101,17 @@ export async function ingestReportFromEmail(
                 parseTime: Date.now() - startTime,
               },
             });
-            logger.info(`Results stored with ID: ${storageResult.id}`);
+            info(`Results stored with ID: ${storageResult.id}`);
           }
           // Generate insights if requested
           let insights;
           if (generateInsightsFlag && storageResult) {
-            logger.info(`Generating insights for ${platform}`);
+            info(`Generating insights for ${platform}`);
             insights = await generateInsights(storageResult.id, {
               platform,
               reportType: intent,
             });
-            logger.info(`Generated ${insights.length} insights`);
+            info(`Generated ${insights.length} insights`);
           }
           // Add to results
           results.push({
@@ -123,7 +123,7 @@ export async function ingestReportFromEmail(
             insights,
           });
         } catch (error) {
-          logger.error(`Error processing attachment ${path.basename(filePath)}:`, isError(error) ? error : String(error));
+          error(`Error processing attachment ${path.basename(filePath)}:`, isError(error) ? error : String(error));
           // Add to results with error
           results.push({
             success: false,
@@ -159,7 +159,7 @@ export async function ingestReportFromEmail(
     // If we got here, no results were processed
     throw new ReportNotFoundError(`No valid reports found for ${platform}`);
   } catch (error) {
-    logger.error(`Email ingestion failed for ${platform}:`, isError(error) ? error : String(error));
+    error(`Email ingestion failed for ${platform}:`, isError(error) ? error : String(error));
     // Only send alert if it's not a "no reports found" error
     if (!(error instanceof ReportNotFoundError)) {
       await sendAdminAlert(

@@ -2,9 +2,11 @@ import { logError } from '../shared/errorHandler.js';
 import { 
   isAppError, 
   toAppError, 
-  AppError, 
-  ERROR_CODES, 
-  type ErrorCode 
+  AppError
+} from '../shared/errorTypes.js';
+import {
+  ERROR_CODES,
+  type ErrorCode
 } from '../shared/errorTypes.js';
 
 /**

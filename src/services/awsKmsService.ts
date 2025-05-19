@@ -4,7 +4,7 @@
  * @fileImplementationStatus partial-mock
  * @fileStubNote This file contains mock implementations for AWS KMS service functions. Replace with real logic for production.
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 /**
  * KMS service options

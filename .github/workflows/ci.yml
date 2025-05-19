@@ -11,10 +11,10 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -57,10 +57,10 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -91,10 +91,10 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -109,10 +109,10 @@ jobs:
     name: Type Safety Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -135,13 +135,41 @@ jobs:
       - name: Generate type safety report
         run: |
           echo "# Type Safety Report" > type-safety-report.md
+          echo "Generated on $(date)" >> type-safety-report.md
+          echo "" >> type-safety-report.md
+
           echo "## Explicit 'any' usage" >> type-safety-report.md
-          grep -r --include="*.ts" --include="*.tsx" "any" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// \[EXCEPTION-" | grep -v "eslint-disable" >> type-safety-report.md || echo "No unauthorized 'any' usage found." >> type-safety-report.md
+          if grep -r --include="*.ts" --include="*.tsx" "any" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// \[EXCEPTION-" | grep -v "eslint-disable" >> type-safety-report.md; then
+            echo "Found unauthorized 'any' usage (see above)." >> type-safety-report.md
+          else
+            echo "No unauthorized 'any' usage found." >> type-safety-report.md
+          fi
+
+          echo "" >> type-safety-report.md
           echo "## @ts-ignore usage" >> type-safety-report.md
-          grep -r --include="*.ts" --include="*.tsx" "@ts-ignore" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// @ts-ignore: \[EXCEPTION-" >> type-safety-report.md || echo "No unauthorized @ts-ignore usage found." >> type-safety-report.md
+          if grep -r --include="*.ts" --include="*.tsx" "@ts-ignore" --exclude-dir="node_modules" --exclude-dir="dist" . | grep -v "// @ts-ignore: \[EXCEPTION-" >> type-safety-report.md; then
+            echo "Found unauthorized @ts-ignore usage (see above)." >> type-safety-report.md
+          else
+            echo "No unauthorized @ts-ignore usage found." >> type-safety-report.md
+          fi
+
+          # Ensure the file exists and has content
+          if [ ! -s type-safety-report.md ]; then
+            echo "# Type Safety Report" > type-safety-report.md
+            echo "Generated on $(date)" >> type-safety-report.md
+            echo "No type safety issues found." >> type-safety-report.md
+          fi
+
+      - name: Verify report file exists
+        run: |
+          if [ ! -f type-safety-report.md ]; then
+            echo "Error: type-safety-report.md not found. Creating an empty report file."
+            echo "# Type Safety Report" > type-safety-report.md
+            echo "No type safety issues found or report generation failed." >> type-safety-report.md
+          fi
 
       - name: Upload type safety report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: type-safety-report
           path: type-safety-report.md

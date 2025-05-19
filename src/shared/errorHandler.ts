@@ -1,12 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { 
-  AppError, 
-  isAppError, 
-  toAppError, 
   ERROR_CODES,
-  type ErrorCode 
-} from './errorTypes.js';
-import { logger } from './logger.js';
+  type ErrorCode
+} from './errorTypes';
+
+interface AppError extends Error {
+  code: string;
+  context?: Record<string, unknown>;
+  statusCode?: number;
+  isOperational?: boolean;
+  details?: unknown;
+  cause?: unknown;
+}
+
+import { logger } from './logger';
 
 /**
  * Log error with appropriate level and context

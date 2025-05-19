@@ -5,14 +5,14 @@
  * with validation and normalization using Zod schemas.
  */
 import fs from 'fs';
-import { getErrorMessage } from '../../../../utils/errorUtils.js';
+import { getErrorMessage } from '../../../../utils/errorUtils';
 import path from 'path';
 import { parse as csvParse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import pdfParse from 'pdf-parse';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import logger from '../../../../utils/logger.js';
+import { debug, info, warn, error } from '../../../../shared/logger';
 // Define file types
 export enum FileType {
   CSV = 'csv',
@@ -68,7 +68,7 @@ export async function parseCSV(
       const arraySchema = z.array(options.schema);
       records = arraySchema.parse(rawRecords);
     }
-    logger.info(
+    info(
       {
         event: 'parsed_csv_records',
         file: path.basename(filePath),
@@ -95,7 +95,7 @@ export async function parseCSV(
     const errorMessage = getErrorMessage(error);
     const stack = error instanceof Error ? error.stack : undefined;
 
-    logger.error(
+    error(
       {
         event: 'error_parsing_csv',
         file: filePath,
@@ -185,7 +185,7 @@ export async function parseXLSX(
       const arraySchema = z.array(options.schema);
       records = arraySchema.parse(allRecords);
     }
-    logger.info(
+    info(
       {
         event: 'parsed_excel_records',
         file: path.basename(filePath),
@@ -212,7 +212,7 @@ export async function parseXLSX(
     // Use type-safe error handling
     const errorMessage = getErrorMessage(error);
     const stack = error instanceof Error ? error.stack : undefined;
-    logger.error(
+    error(
       {
         event: 'error_parsing_excel',
         file: filePath,
@@ -245,7 +245,7 @@ export async function parsePDF(
     const pdfData = await pdfParse(dataBuffer);
     // Extract text content
     const text = pdfData.text;
-    logger.info(
+    info(
       {
         event: 'extracted_pdf_text',
         file: path.basename(filePath),
@@ -262,7 +262,7 @@ export async function parsePDF(
       const arraySchema = z.array(options.schema);
       records = arraySchema.parse(rawRecords);
     }
-    logger.info(
+    info(
       {
         event: 'parsed_pdf_records',
         source: 'pdfContent',
@@ -289,7 +289,7 @@ export async function parsePDF(
     // Use type-safe error handling
     const errorMessage = getErrorMessage(error);
     const stack = error instanceof Error ? error.stack : undefined;
-    logger.error(
+    error(
       {
         event: 'error_parsing_pdf',
         file: filePath,
@@ -353,7 +353,7 @@ function extractTabularDataFromPDF(text: string): Record<string, any>[] {
         }
       }
     }
-    logger.info(
+    info(
       {
         event: 'parsed_pdf_records',
         source: 'pdfContent',
@@ -367,7 +367,7 @@ function extractTabularDataFromPDF(text: string): Record<string, any>[] {
     // Use type-safe error handling
     const errorMessage = getErrorMessage(error);
     const stack = error instanceof Error ? error.stack : undefined;
-    logger.error(
+    error(
       {
         event: 'error_extracting_pdf_table',
         errorMessage,

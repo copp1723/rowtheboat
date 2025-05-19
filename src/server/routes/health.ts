@@ -5,7 +5,7 @@
  */
 import express from 'express';
 import { isError } from '../../utils/errorUtils.js';
-import { logger } from '../../shared/logger.js';
+import { debug, info, warn, error } from '../../shared/logger.js';
 import {
   runAllHealthChecks,
   runHealthCheck,
@@ -30,7 +30,7 @@ router.get('/summary', async (_req, res) => {
     res.json(summary);
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
-    logger.error(`Health summary error: ${message}`);
+    error(`Health summary error: ${message}`);
     res.status(500).json({ error: 'Failed to get health summary' });
   }
 });
@@ -44,7 +44,7 @@ router.get('/run-checks', async (_req, res) => {
     res.json(results);
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
-    logger.error(`Health checks error: ${message}`);
+    error(`Health checks error: ${message}`);
     res.status(500).json({ error: 'Failed to run health checks' });
   }
 });
@@ -63,7 +63,7 @@ router.post('/checks/:id/run', async (req, res) => {
     }
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
-    logger.error(`Health check error: ${message}`);
+    error(`Health check error: ${message}`);
     res.status(500).json({ error: 'Failed to run health check' });
   }
 });
@@ -77,7 +77,7 @@ router.get('/checks', async (_req, res) => {
     res.json(healthChecks);
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
-    logger.error(`Health checks error: ${message}`);
+    error(`Health checks error: ${message}`);
     res.status(500).json({ error: 'Failed to get health checks' });
   }
 });
@@ -93,7 +93,7 @@ router.get('/logs/:checkId', async (req, res) => {
     res.json(logs);
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
-    logger.error(`Health logs error: ${message}`);
+    error(`Health logs error: ${message}`);
     res.status(500).json({ error: 'Failed to get health logs' });
   }
 });
@@ -114,7 +114,7 @@ router.get('/queues', async (_req, res) => {
   } catch (error: unknown) {
     const message = isError(error) ? error.message : String(error);
     
-    logger.error(`Queue health check failed: ${message}`, {
+    error(`Queue health check failed: ${message}`, {
       event: 'queue_health_check_error',
       error: message
     });
@@ -143,7 +143,7 @@ export function registerHealthRoutes(app: express.Express): void {
       });
     } catch (error: unknown) {
       const message = isError(error) ? error.message : String(error);
-      logger.error(`Health check error: ${message}`);
+      error(`Health check error: ${message}`);
       res.status(500).json({ error: 'Failed to get health check' });
     }
   });

@@ -6,8 +6,8 @@
  */
 import { HealthCheckResult } from './healthService';
 import { redisService } from './redisService';
-import { debug, info, warn, error } from '../shared/logger';
-import { isError } from '../utils/errorUtils';
+import { debug, info, warn, error } from '../shared/logger.js';
+import { isError } from '../utils/errorUtils.js';
 
 /**
  * Check Redis health

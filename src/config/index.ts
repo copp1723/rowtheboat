@@ -22,7 +22,7 @@ import {
   CrmCredentialsSchema,
   Environment,
   Config
-} from './schema.js';
+} from './schema';
 import {
   DEFAULT_ENV,
   DEFAULT_LOG_LEVELS,
@@ -34,8 +34,8 @@ import {
   DEFAULT_OTP_EMAIL,
   DEFAULT_REDIS,
   REQUIRED_VARS
-} from './defaults.js';
-import { initializeSecrets, isDefaultValue } from './secrets.js';
+} from './defaults';
+import { initializeSecrets, isDefaultValue } from './secrets';
 
 // Load environment variables from .env file
 dotenv.config();

@@ -6,8 +6,8 @@
  */
 import { debug, info, warn, error } from '../shared/logger';
 import { isError } from '../utils/errorUtils';
-import { EventEmitter } from 'events';
-import loadConfig from '../config/index';
+import loadConfig from '../config';
+import { EventEmitter } from 'events'; // Added import
 
 // Redis client type
 type Redis = any;
@@ -122,7 +122,7 @@ export class RedisService extends EventEmitter {
           timestamp: new Date().toISOString(),
         });
 
-        const RedisModule = await import('ioredis');
+        const RedisModule = await import('ioredis.js');
         this.Redis = RedisModule.default || RedisModule;
 
         info('✅ ioredis module imported successfully', {

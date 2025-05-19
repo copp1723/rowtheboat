@@ -6,7 +6,7 @@
  * @fileImplementationStatus partial-mock
  * @fileStubNote This file contains mock implementations for workflow step handlers. Replace with real logic for production.
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 /**
  * Step handler interface

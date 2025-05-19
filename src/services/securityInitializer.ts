@@ -3,12 +3,12 @@
  * 
  * Initializes all security-related services
  */
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { isError } from '../utils/errorUtils.js';
-import { initializeKmsService } from './awsKmsService.js';
-import { initializeKmsEncryption } from './kmsEncryptionService.js';
-import { initializeKeyRotation } from './keyRotationService.js';
-import { initializeSecurityMonitoring } from './securityMonitoringService.js';
+import { initializeKmsService } from './awsKmsService';
+import { initializeKmsEncryption } from './kmsEncryptionService';
+import { initializeKeyRotation } from './keyRotationService';
+import { initializeSecurityMonitoring } from './securityMonitoringService';
 import { runMigrations } from '../migrations/run-migrations.js';
 
 /**
@@ -42,17 +42,17 @@ export async function initializeSecurity(options?: {
   runMigrations?: boolean;
 }): Promise<boolean> {
   try {
-    logger.info('Initializing security services');
+    info('Initializing security services');
 
     // Run database migrations if requested
     if (options?.runMigrations) {
-      logger.info('Running database migrations');
+      info('Running database migrations');
       try {
         await runMigrations();
-        logger.info('Database migrations completed successfully');
+        info('Database migrations completed successfully');
       } catch (error) {
         const errorMessage = isError(error) ? error.message : String(error);
-        logger.error({
+        error({
           event: 'migrations_error',
           error: errorMessage,
         }, `Failed to run database migrations: ${errorMessage}`);
@@ -71,7 +71,7 @@ export async function initializeSecurity(options?: {
     });
 
     if (!kmsInitialized) {
-      logger.warn('KMS service initialization failed, using fallback encryption');
+      warn('KMS service initialization failed, using fallback encryption');
     }
 
     // Initialize KMS encryption
@@ -84,7 +84,7 @@ export async function initializeSecurity(options?: {
     });
 
     if (!kmsEncryptionInitialized) {
-      logger.warn('KMS encryption initialization failed, using fallback encryption');
+      warn('KMS encryption initialization failed, using fallback encryption');
     }
 
     // Initialize key rotation
@@ -101,7 +101,7 @@ export async function initializeSecurity(options?: {
     });
 
     if (!keyRotationInitialized) {
-      logger.warn('Key rotation initialization failed');
+      warn('Key rotation initialization failed');
     }
 
     // Initialize security monitoring
@@ -114,14 +114,14 @@ export async function initializeSecurity(options?: {
     });
 
     if (!securityMonitoringInitialized) {
-      logger.warn('Security monitoring initialization failed');
+      warn('Security monitoring initialization failed');
     }
 
-    logger.info('Security services initialization completed');
+    info('Security services initialization completed');
     return true;
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'security_initialization_error',
       error: errorMessage,
     }, `Failed to initialize security services: ${errorMessage}`);

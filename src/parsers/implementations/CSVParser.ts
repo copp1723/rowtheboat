@@ -10,11 +10,11 @@ import { pipeline } from 'stream/promises';
 import { parse as csvParse } from 'csv-parse';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BaseParser } from '../base/BaseParser.js';
-import { FileType, ParserOptions, ParserResult } from '../base/types.js';
-import { ParseError } from '../errors/ParserError.js';
-import logger from '../../utils/logger.js';
-import { getErrorMessage } from '../../utils/errorUtils.js';
+import { BaseParser } from '../base/BaseParser';
+import { FileType, ParserOptions, ParserResult } from '../base/types';
+import { ParseError } from '../errors/ParserError';
+import { debug, info, warn, error } from '../../shared/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 /**
  * CSV parser options
@@ -75,7 +75,7 @@ export class CSVParser extends BaseParser {
       const records = this.validateWithSchema(rawRecords, options.schema);
       
       // Log successful parsing
-      logger.info({
+      info({
         event: 'parsed_csv_records',
         file: options._fileName || 'unknown',
         recordCount: records.length,
@@ -92,7 +92,7 @@ export class CSVParser extends BaseParser {
       });
     } catch (error) {
       // Log error
-      logger.error({
+      error({
         event: 'csv_parser_error',
         file: options._fileName || 'unknown',
         error: error instanceof Error ? error.message : String(error),
@@ -153,7 +153,7 @@ export class CSVParser extends BaseParser {
             const validatedRecords = this.validateWithSchema(records, options.schema);
             
             // Log successful parsing
-            logger.info({
+            info({
               event: 'parsed_csv_stream',
               file: options._fileName || 'unknown',
               recordCount: validatedRecords.length,

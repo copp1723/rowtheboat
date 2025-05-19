@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../shared/db.js';
 import { apiKeys } from '../shared/schema.js';
 import { encryptData, decryptData, isEncryptionConfigured } from '../utils/encryption.js';
-import { debug, info, warn, error } from '../shared/logger';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { isError } from '../utils/errorUtils.js';
 
 /**
