@@ -4,7 +4,7 @@
  * Provides encryption and decryption functionality using AWS KMS
  * TODO: Replace with real implementation
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 /**
  * Encryption options

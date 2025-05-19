@@ -1,7 +1,7 @@
 import { Eko } from '@eko-ai/eko';
 // Import ExecutionPlan as a type only since we're not using the class constructor
 import type {   ExecutionPlan   } from '../agent/executePlan.js';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 export interface ParsedTask {
   id: string;
@@ -39,7 +39,7 @@ export class TaskParser {
   }
   async parseUserRequest(userInput: string): Promise<ParserResult> {
     try {
-      this.logger.info('Parsing user request', { userInput: userInput.substring(0, 100) + '...' });
+      this.info('Parsing user request', { userInput: userInput.substring(0, 100) + '...' });
       // Attempt to extract structured task information using Eko
       const taskInfo = await this.extractTaskInfo(userInput);
       if (!taskInfo || !taskInfo.type) {
@@ -73,7 +73,7 @@ export class TaskParser {
           };
           parsedTask.planId = planId.toString();
         } catch (planError) {
-          this.logger.error('Error creating execution plan', { error: planError });
+          this.error('Error creating execution plan', { error: planError });
           // Continue without execution plan but record the error
           parsedTask.metadata = {
             ...parsedTask.metadata,
@@ -81,7 +81,7 @@ export class TaskParser {
           };
         }
       }
-      this.logger.info('Successfully parsed task', {
+      this.info('Successfully parsed task', {
         taskId: parsedTask.id,
         taskType: parsedTask.type,
       });
@@ -90,7 +90,7 @@ export class TaskParser {
         executionPlan,
       };
     } catch (error) {
-      this.logger.error('Failed to parse user request', { error });
+      this.error('Failed to parse user request', { error });
       // Create a fallback minimal task
       const fallbackTask: ParsedTask = {
         id: uuidv4(),
@@ -167,7 +167,7 @@ For "steps", provide an array of string instructions that would logically comple
       }
       return taskInfo;
     } catch (error) {
-      this.logger.error('Failed to extract task info', { error });
+      this.error('Failed to extract task info', { error });
       // Attempt a second try with a simpler prompt if extraction fails
       return this.fallbackExtraction(userInput);
     }
@@ -196,7 +196,7 @@ For "steps", provide an array of string instructions that would logically comple
       }
       return JSON.parse(jsonMatch[0]);
     } catch (error) {
-      this.logger.error('Fallback extraction failed', { error });
+      this.error('Fallback extraction failed', { error });
       // Return a minimal object if all extraction fails
       return {
         type: 'simple',

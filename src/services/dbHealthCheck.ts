@@ -4,9 +4,9 @@
  * This module provides a health check function for PostgreSQL that can be registered
  * with the health monitoring service.
  */
-import { db } from '../shared/db';
-import { logger } from '../shared/logger';
-import { isError } from '../utils/errorUtils';
+import { db } from '../shared/db.js';
+import { debug, info, warn, error } from '../shared/logger';
+import { isError } from '../utils/errorUtils.js';
 import { HealthCheckResult } from './healthService'; // Assuming HealthCheckResult is defined here or in a shared types file
 
 /**
@@ -22,7 +22,7 @@ export async function checkPostgresHealth(): Promise<HealthCheckResult> {
     // Attempt a simple query to check connectivity
     await db.execute('SELECT 1');
     const responseTime = Date.now() - startTime;
-    logger.info('PostgreSQL health check: OK', { duration: responseTime });
+    info('PostgreSQL health check: OK', { duration: responseTime });
     return {
       id,
       name,
@@ -38,7 +38,7 @@ export async function checkPostgresHealth(): Promise<HealthCheckResult> {
   } catch (err) {
     const responseTime = Date.now() - startTime;
     const errorMessage = isError(err) ? err.message : String(err);
-    logger.error('PostgreSQL health check failed', {
+    error('PostgreSQL health check failed', {
       error: errorMessage,
       stack: err instanceof Error ? err.stack : undefined,
       duration: responseTime,

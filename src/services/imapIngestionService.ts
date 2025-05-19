@@ -4,7 +4,7 @@
  * Provides functionality to fetch emails with attachments from IMAP servers
  * TODO: Replace with real implementation
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';

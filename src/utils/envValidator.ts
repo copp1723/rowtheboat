@@ -4,8 +4,8 @@
  * Validates required environment variables and prevents startup with default
  * or missing secrets in production environments.
  */
-import { logger } from '../shared/logger.js';
-import { logSecurityEvent } from './encryption.js';
+import { debug, info, warn, error } from '../shared/logger.js';
+import { logSecurityEvent } from './encryption';
 // Default values that should not be used in production
 const DEFAULT_VALUES = {
   // Encryption keys
@@ -126,10 +126,10 @@ export function validateEnvOrExit(env = process.env): boolean {
   // Log validation results
   if (!result.valid) {
     if (result.missing.length > 0) {
-      logger.error(`Missing required environment variables: ${result.missing.join(', ')}`);
+      error(`Missing required environment variables: ${result.missing.join(', ')}`);
     }
     if (result.usingDefaults.length > 0) {
-      logger.error(`Using default values for: ${result.usingDefaults.join(', ')}`);
+      error(`Using default values for: ${result.usingDefaults.join(', ')}`);
     }
     // Log security event
     logSecurityEvent(
@@ -142,17 +142,17 @@ export function validateEnvOrExit(env = process.env): boolean {
       },
       'critical'
     ).catch((err) => {
-      logger.error('Failed to log security event:', err);
+      error('Failed to log security event:', err);
     });
     // Exit in production
     if (nodeEnv === 'production') {
-      logger.error('Exiting due to missing or default environment variables in production');
+      error('Exiting due to missing or default environment variables in production');
       process.exit(1);
     }
   }
   // Log recommendations
   if (result.recommendations.length > 0) {
-    logger.warn(`Recommended environment variables not set: ${result.recommendations.join(', ')}`);
+    warn(`Recommended environment variables not set: ${result.recommendations.join(', ')}`);
   }
   return result.valid;
 }
@@ -173,7 +173,7 @@ export function getValidatedEnv(
   // Check if value exists
   if (!value) {
     if (required) {
-      logger.error(`Required environment variable ${key} is not set`);
+      error(`Required environment variable ${key} is not set`);
       if (process.env.NODE_ENV === 'production') {
         process.exit(1);
       }
@@ -183,10 +183,10 @@ export function getValidatedEnv(
   // Check if value is a default
   if (isDefaultValue(key, value)) {
     if (process.env.NODE_ENV === 'production') {
-      logger.error(`Environment variable ${key} is using a default value in production`);
+      error(`Environment variable ${key} is using a default value in production`);
       process.exit(1);
     } else {
-      logger.warn(`Environment variable ${key} is using a default value`);
+      warn(`Environment variable ${key} is using a default value`);
     }
   }
   return value;

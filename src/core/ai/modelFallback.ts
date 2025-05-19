@@ -1,11 +1,11 @@
 /**
  * Model Fallback System
- * 
+ *
  * This module provides fallback logic for LLM models,
  * allowing the system to gracefully degrade when primary models are unavailable.
  */
-import { logger } from '../../utils/logger.js';
-import { OpenAIService } from './openai.js';
+import { debug, info, warn, error } from '../../shared/logger';
+import { OpenAIService } from './openai';
 
 /**
  * Model configuration
@@ -71,7 +71,7 @@ export const DEFAULT_MODELS: ModelConfig[] = [
 export class ModelFallbackManager {
   private models: ModelConfig[];
   private openaiService: OpenAIService;
-  
+
   /**
    * Create a new model fallback manager
    * @param openaiService - OpenAI service instance
@@ -81,7 +81,7 @@ export class ModelFallbackManager {
     this.openaiService = openaiService;
     this.models = [...models];
   }
-  
+
   /**
    * Get all available models
    * @returns Array of model configurations
@@ -89,7 +89,7 @@ export class ModelFallbackManager {
   public getModels(): ModelConfig[] {
     return this.models.filter(model => model.enabled);
   }
-  
+
   /**
    * Get a model by ID
    * @param modelId - Model ID
@@ -98,7 +98,7 @@ export class ModelFallbackManager {
   public getModel(modelId: string): ModelConfig | undefined {
     return this.models.find(model => model.id === modelId && model.enabled);
   }
-  
+
   /**
    * Get fallback models for a given model
    * @param modelId - Model ID
@@ -109,12 +109,12 @@ export class ModelFallbackManager {
     if (!model) {
       return [];
     }
-    
+
     // Get models with the same capabilities but lower tier
     return this.models
-      .filter(m => 
-        m.enabled && 
-        m.id !== modelId && 
+      .filter(m =>
+        m.enabled &&
+        m.id !== modelId &&
         m.capabilities.some(cap => model.capabilities.includes(cap))
       )
       .sort((a, b) => {
@@ -123,7 +123,7 @@ export class ModelFallbackManager {
         return tierOrder[a.tier] - tierOrder[b.tier];
       });
   }
-  
+
   /**
    * Generate a completion with fallback
    * @param prompt - The prompt to send
@@ -147,11 +147,11 @@ export class ModelFallbackManager {
     // Get the primary model
     const primaryModelId = options.modelId || 'gpt-4o';
     const primaryModel = this.getModel(primaryModelId);
-    
+
     if (!primaryModel) {
       throw new Error(`Model not found: ${primaryModelId}`);
     }
-    
+
     try {
       // Try the primary model first
       return await this.openaiService.generateCompletion(prompt, {
@@ -165,25 +165,25 @@ export class ModelFallbackManager {
         role: options.role,
       });
     } catch (error) {
-      logger.warn(`Primary model ${primaryModel.id} failed, trying fallbacks:`, error);
-      
+      warn(`Primary model ${primaryModel.id} failed, trying fallbacks:`, error);
+
       // Get fallback models
       const fallbacks = this.getFallbackModels(primaryModel.id);
-      
+
       // Filter by required capabilities if specified
       const eligibleFallbacks = options.requiredCapabilities
-        ? fallbacks.filter(model => 
-            options.requiredCapabilities!.every(cap => 
+        ? fallbacks.filter(model =>
+            options.requiredCapabilities!.every(cap =>
               model.capabilities.includes(cap)
             )
           )
         : fallbacks;
-      
+
       // Try each fallback model in order
       for (const fallbackModel of eligibleFallbacks) {
         try {
-          logger.info(`Trying fallback model: ${fallbackModel.id}`);
-          
+          info(`Trying fallback model: ${fallbackModel.id}`);
+
           return await this.openaiService.generateCompletion(prompt, {
             model: fallbackModel.id,
             systemPrompt: options.systemPrompt,
@@ -195,16 +195,16 @@ export class ModelFallbackManager {
             role: options.role,
           });
         } catch (fallbackError) {
-          logger.warn(`Fallback model ${fallbackModel.id} failed:`, fallbackError);
+          warn(`Fallback model ${fallbackModel.id} failed:`, fallbackError);
           // Continue to the next fallback
         }
       }
-      
+
       // If all fallbacks failed, throw the original error
       throw error;
     }
   }
-  
+
   /**
    * Add a new model configuration
    * @param model - Model configuration
@@ -212,7 +212,7 @@ export class ModelFallbackManager {
   public addModel(model: ModelConfig): void {
     // Check if the model already exists
     const existingIndex = this.models.findIndex(m => m.id === model.id);
-    
+
     if (existingIndex >= 0) {
       // Update existing model
       this.models[existingIndex] = { ...model };
@@ -221,7 +221,7 @@ export class ModelFallbackManager {
       this.models.push({ ...model });
     }
   }
-  
+
   /**
    * Enable or disable a model
    * @param modelId - Model ID
@@ -230,12 +230,12 @@ export class ModelFallbackManager {
    */
   public setModelEnabled(modelId: string, enabled: boolean): boolean {
     const model = this.models.find(m => m.id === modelId);
-    
+
     if (model) {
       model.enabled = enabled;
       return true;
     }
-    
+
     return false;
   }
 }

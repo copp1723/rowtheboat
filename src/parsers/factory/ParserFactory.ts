@@ -10,15 +10,15 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { createReadStream } from 'fs';
 
-import { FileType } from '../base/types.js';
-import { IParser } from '../base/IParser.js';
-import { UnsupportedFileTypeError, DuplicateFileError } from '../errors/ParserError.js';
-import logger from '../../utils/logger.js';
-import { recordDuplicate } from '../utils/monitoring.js';
+import { FileType } from '../base/types';
+import { IParser } from '../base/IParser';
+import { UnsupportedFileTypeError, DuplicateFileError } from '../errors/ParserError';
+import { debug, info, warn, error } from '../../shared/logger';
+import { recordDuplicate } from '../utils/monitoring';
 
 // Import database connection for deduplication
 // This will need to be created or imported
-import { db } from '../../db/index.js';
+import { db } from '../../db/index';
 
 /**
  * Factory for creating parser instances
@@ -200,7 +200,7 @@ export class ParserFactory {
       // If we found a matching hash, it's a duplicate
       return result.rows.length > 0;
     } catch (error) {
-      logger.error('Error checking for duplicate file', { fileHash, error });
+      error('Error checking for duplicate file', { fileHash, error });
       return false;
     }
   }
@@ -223,9 +223,9 @@ export class ParserFactory {
         [fileHash, JSON.stringify(metadata), new Date(), expiresAt]
       );
 
-      logger.info('Stored file hash', { fileHash, metadata, expiresAt });
+      info('Stored file hash', { fileHash, metadata, expiresAt });
     } catch (error) {
-      logger.error('Error storing file hash', { fileHash, error });
+      error('Error storing file hash', { fileHash, error });
     }
   }
 }

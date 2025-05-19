@@ -2,7 +2,7 @@
  * Email Templates Service
  * Provides templates for various email types in the application
  */
-import { Workflow } from '../../../../shared/schema.js';
+import { Workflow } from '../../../../shared/schema';
 interface TemplateData {
   workflowId: string;
   workflowStatus: string;

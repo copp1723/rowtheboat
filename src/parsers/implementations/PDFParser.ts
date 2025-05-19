@@ -8,12 +8,12 @@ import { Readable } from 'stream';
 import pdfParse from 'pdf-parse';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BaseParser } from '../base/BaseParser.js';
-import { FileType, ParserOptions, ParserResult } from '../base/types.js';
-import { ParseError } from '../errors/ParserError.js';
-import logger from '../../utils/logger.js';
-import { getErrorMessage } from '../../utils/errorUtils.js';
-import { streamToTempFile, cleanupTempFiles } from '../utils/fileUtils.js';
+import { BaseParser } from '../base/BaseParser';
+import { FileType, ParserOptions, ParserResult } from '../base/types';
+import { ParseError } from '../errors/ParserError';
+import { debug, info, warn, error } from '../../shared/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
+import { streamToTempFile, cleanupTempFiles } from '../utils/fileUtils';
 
 /**
  * PDF extraction mode
@@ -89,7 +89,7 @@ export class PDFParser extends BaseParser {
       // Extract text content
       const text = pdfData.text;
       
-      logger.info({
+      info({
         event: 'extracted_pdf_text',
         file: options._fileName || 'unknown',
         charCount: text.length,
@@ -115,7 +115,7 @@ export class PDFParser extends BaseParser {
       });
     } catch (error) {
       // Log error
-      logger.error({
+      error({
         event: 'pdf_parser_error',
         file: options._fileName || 'unknown',
         error: error instanceof Error ? error.message : String(error),

@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { isError } from '../utils/errorUtils.js';
 import { db } from '../shared/db.js';
 import { securityAuditLogs } from '../shared/schema.js';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 // Constants for encryption
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 16 bytes for AES
@@ -35,7 +35,7 @@ export function initializeEncryption(env = process.env): boolean {
       }
       // For development, derive a key from the default
       // This is NOT secure for production use
-      logger.warn('Using default encryption key. This is NOT secure for production.');
+      warn('Using default encryption key. This is NOT secure for production.');
       encryptionKey = crypto.scryptSync(DEFAULT_KEY, 'salt', KEY_LENGTH);
       return false;
     }
@@ -53,7 +53,7 @@ export function initializeEncryption(env = process.env): boolean {
     }
     return true;
   } catch (error) {
-    logger.error('Failed to initialize encryption:', error);
+    error('Failed to initialize encryption:', error);
     // In development, fall back to default key
     if (env.NODE_ENV !== 'production') {
       encryptionKey = crypto.scryptSync(DEFAULT_KEY, 'salt', KEY_LENGTH);
@@ -122,7 +122,7 @@ export function encryptData(
         : String(error)
       : String(error);
     
-    logger.error(`Encryption error: ${errorMessage}`);
+    error(`Encryption error: ${errorMessage}`);
     throw new Error(`Encryption failed: ${errorMessage}`);
   }
 }
@@ -170,7 +170,7 @@ export function decryptData(
         : String(error)
       : String(error);
     
-    logger.error(`Decryption error: ${errorMessage}`);
+    error(`Decryption error: ${errorMessage}`);
     throw new Error(`Decryption failed: ${errorMessage}`);
   }
 }
@@ -204,7 +204,7 @@ export function legacyDecryptData(encryptedData: string, iv: string): Record<str
     }
     return JSON.parse(decryptedString);
   } catch (error) {
-    logger.error('Failed to decrypt legacy data:', error);
+    error('Failed to decrypt legacy data:', error);
     throw new Error(
       'Legacy decryption failed - data may be corrupted or encryption key is invalid'
     );
@@ -259,7 +259,7 @@ export async function logSecurityEvent(
         : String(error)
       : String(error);
     
-    logger.error(`Security event logging error: ${errorMessage}`);
+    error(`Security event logging error: ${errorMessage}`);
   }
 }
 /**
@@ -287,7 +287,7 @@ export function testEncryption(): boolean {
       decrypted.timestamp === testData.timestamp
     );
   } catch (error) {
-    logger.error('Encryption test failed:', error);
+    error('Encryption test failed:', error);
     return false;
   }
 }

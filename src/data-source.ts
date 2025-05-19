@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { SecretVault } from './entities/SecretVault.js';
+import { SecretVault } from './entities/SecretVault';
 import dotenv from 'dotenv';
 
 dotenv.config();

@@ -4,8 +4,8 @@
  * This script runs the RLS migration to enable Row Level Security
  * on all user-specific tables.
  */
-import { db } from '../shared/db.js';
-import { logger } from '../shared/logger.js';
+import { db } from '../shared/db';
+import { debug, info, warn, error } from '../shared/logger';
 import { sql } from 'drizzle-orm';
 import fs from 'fs';
 import path from 'path';
@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 
 async function runRlsMigration() {
   try {
-    logger.info('Starting RLS migration...');
+    info('Starting RLS migration...');
     
     // Read the SQL file
     const sqlPath = path.join(__dirname, 'enable-rls.sql');
@@ -33,9 +33,9 @@ async function runRlsMigration() {
     for (const statement of statements) {
       try {
         await db.execute(sql.raw(`${statement};`));
-        logger.info(`Executed SQL statement: ${statement.substring(0, 50)}...`);
+        info(`Executed SQL statement: ${statement.substring(0, 50)}...`);
       } catch (error) {
-        logger.error({
+        error({
           event: 'rls_migration_statement_error',
           error: error instanceof Error ? error.message : String(error),
           statement: statement.substring(0, 100),
@@ -46,9 +46,9 @@ async function runRlsMigration() {
       }
     }
     
-    logger.info('RLS migration completed successfully');
+    info('RLS migration completed successfully');
   } catch (error) {
-    logger.error({
+    error({
       event: 'rls_migration_error',
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
@@ -61,10 +61,10 @@ async function runRlsMigration() {
 // Run the migration
 runRlsMigration()
   .then(() => {
-    logger.info('RLS migration script completed');
+    info('RLS migration script completed');
     process.exit(0);
   })
   .catch(error => {
-    logger.error('RLS migration script failed', error);
+    error('RLS migration script failed', error);
     process.exit(1);
   });

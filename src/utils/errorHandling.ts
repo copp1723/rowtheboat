@@ -2,8 +2,8 @@
  * Simplified error handling utilities
  * This module provides a cleaner, more consistent approach to error handling
  */
-import { isError, isErrorWithMessage, toErrorWithMessage } from './errorUtils.js';
-import { logger } from '../shared/logger.js';
+import { isError, isErrorWithMessage, toErrorWithMessage } from './errorUtils';
+import { debug, info, warn, error } from '../shared/logger.js';
 
 /**
  * Get a clean error message from any error type
@@ -62,9 +62,9 @@ export function logFormattedError(
   };
   
   if (level === 'error') {
-    logger.error(`Error: ${errorData.message}`, errorData);
+    error(`Error: ${errorData.message}`, errorData);
   } else {
-    logger.warn(`Warning: ${errorData.message}`, errorData);
+    warn(`Warning: ${errorData.message}`, errorData);
   }
 }
 
@@ -126,7 +126,7 @@ export async function executeWithRetry<T>(
       const backoffDelay = delay * Math.pow(backoffFactor, attempt);
       
       // Log retry attempt
-      logger.info(`Retry attempt ${attempt + 1}/${retries} after ${backoffDelay}ms`, {
+      info(`Retry attempt ${attempt + 1}/${retries} after ${backoffDelay}ms`, {
         ...context,
         errorMessage: getErrorMessage(error),
         attempt: attempt + 1,

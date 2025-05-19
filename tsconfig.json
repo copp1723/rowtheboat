@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "target": "ES2018",
+    "module": "NodeNext",
+    "target": "ES2022",
     "outDir": "./dist",
     "rootDir": "./src",
     "esModuleInterop": true,
@@ -11,10 +11,13 @@
     "noImplicitAny": true,
     "skipLibCheck": true,
     "noEmitOnError": false,
-    "moduleResolution": "Node",
-    "baseUrl": ".",
+    "moduleResolution": "NodeNext",
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "src",
     "paths": {
-      "@/*": ["src/*"]
+      "@shared/*": ["shared/*"],
+      "@utils/*": ["utils/*"],
+      "@/*": ["./*"]
     }
   },
   "include": ["src/index.ts", "src/**/*.ts"],

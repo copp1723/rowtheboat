@@ -4,7 +4,7 @@
  * Provides consistent response formatting for API endpoints
  */
 import { Response } from 'express';
-import { getErrorMessage } from './errorHandling.js';
+import { getErrorMessage } from './errorHandling';
 
 /**
  * Standard success response

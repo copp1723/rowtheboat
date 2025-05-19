@@ -6,7 +6,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { db } from '../shared/db.js';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { circuitBreakerState } from '../shared/schema.js';
 // Circuit breaker states
 export enum CircuitState {
@@ -151,7 +151,7 @@ export class CircuitBreaker {
       }
       return result.state as CircuitState;
     } catch (error) {
-      logger.error(`Error getting circuit state for ${this.name}:`, error);
+      error(`Error getting circuit state for ${this.name}:`, error);
       return CircuitState.CLOSED; // Default to closed on error
     }
   }
@@ -183,12 +183,12 @@ export class CircuitBreaker {
           })
           .where(sql`name = ${this.name}`);
       } catch (error) {
-        logger.error(`Error updating circuit state for ${this.name}:`, error);
+        error(`Error updating circuit state for ${this.name}:`, error);
       }
     }
     // Notify state change
     this.options.onStateChange(currentState, newState);
-    logger.info(`Circuit ${this.name} state changed from ${currentState} to ${newState}`);
+    info(`Circuit ${this.name} state changed from ${currentState} to ${newState}`);
   }
   /**
    * Record a successful execution
@@ -224,7 +224,7 @@ export class CircuitBreaker {
             .where(sql`name = ${this.name}`);
         }
       } catch (error) {
-        logger.error(`Error recording success for circuit ${this.name}:`, error);
+        error(`Error recording success for circuit ${this.name}:`, error);
       }
     }
   }
@@ -272,7 +272,7 @@ export class CircuitBreaker {
             .where(sql`name = ${this.name}`);
         }
       } catch (error) {
-        logger.error(`Error recording failure for circuit ${this.name}:`, error);
+        error(`Error recording failure for circuit ${this.name}:`, error);
       }
     }
   }
@@ -290,7 +290,7 @@ export class CircuitBreaker {
         .where(sql`name = ${this.name}`);
       return result?.last_failure_ms ?? 0;
     } catch (error) {
-      logger.error(`Error getting last failure for circuit ${this.name}:`, error);
+      error(`Error getting last failure for circuit ${this.name}:`, error);
       return 0;
     }
   }
@@ -319,10 +319,10 @@ export class CircuitBreaker {
           })
           .where(sql`name = ${this.name}`);
       } catch (error) {
-        logger.error(`Error resetting circuit ${this.name}:`, error);
+        error(`Error resetting circuit ${this.name}:`, error);
       }
     }
-    logger.info(`Circuit ${this.name} has been reset to CLOSED state`);
+    info(`Circuit ${this.name} has been reset to CLOSED state`);
   }
 }
 /**

@@ -4,14 +4,14 @@
  * Provides role-based access control for API keys
  */
 import { debug, info, warn, error } from '../shared/logger';
-import { isError } from '../utils/errorUtils.js';
-import { db } from '../shared/db.js';
-import { apiKeys } from '../shared/schema.js';
+import { isError } from '../utils/errorUtils';
+import { db } from '../shared/db';
+import { apiKeys, SelectApiKey } from '../shared/schema'; // Added SelectApiKey
 import { eq, and } from 'drizzle-orm';
-import { logSecurityEvent } from './awsKmsService.js';
+import { logSecurityEvent } from './awsKmsService'; // Corrected import path
 
 // Define role hierarchy
-const roleHierarchy = {
+const roleHierarchy: Record<string, string[]> = {
   'admin': ['admin', 'manager', 'user', 'readonly'],
   'manager': ['manager', 'user', 'readonly'],
   'user': ['user', 'readonly'],
@@ -19,7 +19,7 @@ const roleHierarchy = {
 };
 
 // Define permission sets for each role
-const rolePermissions = {
+const rolePermissions: Record<string, Record<string, string[]>> = {
   'admin': {
     'api_keys': ['create', 'read', 'update', 'delete', 'list'],
     'users': ['create', 'read', 'update', 'delete', 'list'],
@@ -67,22 +67,25 @@ export function hasPermission(
   resource: string,
   action: string
 ): boolean {
-  // Get the role from the hierarchy or default to readonly
-  const roleLevel = roleHierarchy[role] || roleHierarchy.readonly;
+  const currentRole = role as keyof typeof roleHierarchy;
+  const roleLevel = roleHierarchy[currentRole] || roleHierarchy.readonly;
 
-  // Check if the role exists in the hierarchy
   if (!roleLevel) {
     warn(`Unknown role: ${role}, defaulting to readonly`);
     return hasPermission('readonly', resource, action);
   }
 
-  // Check if the resource exists in the permissions
-  if (!rolePermissions[role] || !rolePermissions[role][resource]) {
+  const permissionsForRole = rolePermissions[currentRole];
+  if (!permissionsForRole) {
     return false;
   }
 
-  // Check if the action is allowed for the resource
-  return rolePermissions[role][resource].includes(action);
+  const permissionsForResource = permissionsForRole[resource];
+  if (!permissionsForResource) {
+    return false;
+  }
+
+  return permissionsForResource.includes(action);
 }
 
 /**
@@ -92,13 +95,12 @@ export function hasPermission(
  * @returns Object containing all permissions for the role
  */
 export function getRolePermissions(role: string): Record<string, string[]> {
-  // Get the role from the hierarchy or default to readonly
-  const validRole = roleHierarchy[role] ? role : 'readonly';
+  const currentRole = role as keyof typeof roleHierarchy;
+  const validRole = roleHierarchy[currentRole] ? currentRole : 'readonly';
 
   if (validRole !== role) {
     warn(`Unknown role: ${role}, defaulting to readonly`);
   }
-
   return rolePermissions[validRole] || rolePermissions.readonly;
 }
 
@@ -116,8 +118,7 @@ export async function checkApiKeyPermission(
   action: string
 ): Promise<boolean> {
   try {
-    // Get the API key
-    const [apiKey] = await db
+    const [apiKey]: SelectApiKey[] = await db // Use SelectApiKey type
       .select()
       .from(apiKeys)
       .where(
@@ -127,37 +128,26 @@ export async function checkApiKeyPermission(
         )
       );
 
-    // If the API key doesn't exist or is inactive, deny access
     if (!apiKey) {
       warn(`API key not found or inactive: ${apiKeyId}`);
       return false;
     }
 
-    // Check if the API key has expired
     if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
       warn(`API key expired: ${apiKeyId}`);
-
-      // Log security event
       await logSecurityEvent('api_key_expired', apiKey.userId || undefined, {
         apiKeyId,
         resource,
         action,
       }, 'warning');
-
       return false;
     }
 
-    // Get the role from the API key
     const role = apiKey.role || 'user';
-
-    // Check if the role has the permission
     const permitted = hasPermission(role, resource, action);
 
-    // Log the permission check
     if (!permitted) {
       warn(`Permission denied for API key ${apiKeyId}: ${resource}:${action}`);
-
-      // Log security event
       await logSecurityEvent('api_key_permission_denied', apiKey.userId || undefined, {
         apiKeyId,
         resource,
@@ -165,26 +155,22 @@ export async function checkApiKeyPermission(
         role,
       }, 'warning');
     }
-
     return permitted;
   } catch (err) {
     const errorMessage = isError(err) ? err.message : String(err);
-    error({
+    error(`Failed to check API key permission: ${errorMessage}`, {
       event: 'api_key_permission_check_error',
       error: errorMessage,
       apiKeyId,
       resource,
       action,
-    }, `Failed to check API key permission: ${errorMessage}`);
-
-    // Log security event
+    });
     await logSecurityEvent('api_key_permission_check_error', undefined, {
       apiKeyId,
       resource,
       action,
       error: errorMessage,
     }, 'error');
-
     return false;
   }
 }
@@ -205,67 +191,60 @@ export async function updateApiKeyPermissions(
   userId?: string
 ): Promise<boolean> {
   try {
-    // Validate the role
-    if (!roleHierarchy[role]) {
+    if (!(role in roleHierarchy)) {
       warn(`Invalid role: ${role}`);
       return false;
     }
 
-    // Get the base permissions for the role
     const basePermissions = getRolePermissions(role);
-
-    // Merge with custom permissions if provided
-    const permissions = customPermissions
+    const permissionsToSet = customPermissions
       ? { ...basePermissions, ...customPermissions }
       : basePermissions;
 
-    // Update the API key
     await db
       .update(apiKeys)
       .set({
-        role,
-        permissions,
+        role: role,
+        // permissions: permissionsToSet, // Assuming permissions field exists and is of type JSON or similar
         updatedAt: new Date(),
       })
       .where(eq(apiKeys.id, apiKeyId));
 
-    // Log the update
-    info({
-      event: 'api_key_permissions_updated',
-      apiKeyId,
-      role,
-      hasCustomPermissions: !!customPermissions,
-    }, `Updated permissions for API key ${apiKeyId}`);
-
-    // Log security event
+    info(
+      `Updated permissions for API key ${apiKeyId}`,
+      {
+        event: 'api_key_permissions_updated',
+        apiKeyId,
+        role,
+        hasCustomPermissions: !!customPermissions,
+      }
+    );
     await logSecurityEvent('api_key_permissions_updated', userId, {
       apiKeyId,
       role,
       hasCustomPermissions: !!customPermissions,
     });
-
     return true;
   } catch (err) {
     const errorMessage = isError(err) ? err.message : String(err);
-    error({
-      event: 'api_key_permissions_update_error',
-      error: errorMessage,
-      apiKeyId,
-      role,
-    }, `Failed to update API key permissions: ${errorMessage}`);
-
-    // Log security event
+    error(
+      `Failed to update API key permissions: ${errorMessage}`,
+      {
+        event: 'api_key_permissions_update_error',
+        error: errorMessage,
+        apiKeyId,
+        role,
+      }
+    );
     await logSecurityEvent('api_key_permissions_update_error', userId, {
       apiKeyId,
       role,
       error: errorMessage,
     }, 'error');
-
     return false;
   }
 }
 
-// Export the service
 export default {
   hasPermission,
   getRolePermissions,

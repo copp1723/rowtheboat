@@ -5,12 +5,12 @@
 import { db } from '../shared/db.js';
 import { getErrorMessage } from '../utils/errorUtils.js';
 import { schedules, taskLogs } from '../shared/schema.js';
-import { runWorkflow, getWorkflow } from './workflowService.js';
+import { runWorkflow, getWorkflow } from './workflowService';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import cron from 'node-cron';
-import { enqueueJob } from './jobQueue.js';
-import logger from '../utils/logger.js';
+import { enqueueJob } from './jobQueue';
+import { debug, info, warn, error } from '../shared/logger.js';
 
 // Define Schedule type based on the database schema
 export interface Schedule {
@@ -35,13 +35,13 @@ const activeSchedules = new Map<string, ReturnType<typeof cron.schedule>>();
  */
 export async function initializeScheduler(): Promise<void> {
   try {
-    logger.info(
+    info(
       { event: 'scheduler_service_init', timestamp: new Date().toISOString() },
       'Initializing scheduler service'
     );
     // Load all enabled schedules
     const enabledSchedules = await db.select().from(schedules).where(eq(schedules.enabled, true));
-    logger.info(
+    info(
       {
         event: 'scheduler_service_enabled_count',
         count: enabledSchedules.length,
@@ -55,7 +55,7 @@ export async function initializeScheduler(): Promise<void> {
       try {
         // Validate the cron expression before attempting to start
         if (!cron.validate(schedule.cron)) {
-          logger.error(
+          error(
             {
               event: 'schedule_invalid_cron',
               scheduleId: schedule.id,
@@ -79,7 +79,7 @@ export async function initializeScheduler(): Promise<void> {
         await startSchedule(schedule);
       } catch (error) {
         let errorMessage = getErrorMessage(error);
-        logger.error(
+        error(
           {
             event: 'schedule_service_start_failed',
             scheduleId: schedule.id,
@@ -94,7 +94,7 @@ export async function initializeScheduler(): Promise<void> {
       }
     }
     if (startupErrors.length > 0) {
-      logger.warn(
+      warn(
         {
           event: 'scheduler_service_startup_errors',
           errors: startupErrors,
@@ -103,14 +103,14 @@ export async function initializeScheduler(): Promise<void> {
         `Scheduler initialized with startup errors`
       );
     } else {
-      logger.info(
+      info(
         { event: 'scheduler_service_init_complete', timestamp: new Date().toISOString() },
         'Scheduler initialized successfully'
       );
     }
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'scheduler_service_init_error',
         errorMessage,
@@ -159,7 +159,7 @@ export async function createSchedule(
     return newSchedule;
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_create_error',
         errorMessage,
@@ -183,7 +183,7 @@ export async function getSchedule(scheduleId: string): Promise<Schedule | undefi
     return schedule;
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_get_error',
         scheduleId,
@@ -204,7 +204,7 @@ export async function listSchedules(): Promise<Schedule[]> {
     return await db.select().from(schedules).orderBy(schedules.createdAt);
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_list_error',
         errorMessage,
@@ -266,7 +266,7 @@ export async function updateSchedule(
     return updatedSchedule;
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_update_error',
         scheduleId,
@@ -296,7 +296,7 @@ export async function deleteSchedule(scheduleId: string): Promise<boolean> {
     return !!deletedSchedule;
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_delete_error',
         scheduleId,
@@ -318,7 +318,7 @@ export async function startSchedule(schedule: Schedule): Promise<void> {
     if (activeSchedules.has(schedule.id)) {
       await stopSchedule(schedule.id);
     }
-    logger.info(
+    info(
       {
         event: 'schedule_service_start_schedule',
         scheduleId: schedule.id,
@@ -340,7 +340,7 @@ export async function startSchedule(schedule: Schedule): Promise<void> {
           try {
             await executeScheduledWorkflow(schedule);
           } catch (executionError) {
-            logger.error(
+            error(
               {
                 event: 'schedule_service_execute_error',
                 scheduleId: schedule.id,
@@ -357,7 +357,7 @@ export async function startSchedule(schedule: Schedule): Promise<void> {
       );
       // Store the task in our active schedules map
       activeSchedules.set(schedule.id, task);
-      logger.info(
+      info(
         {
           event: 'schedule_service_start_schedule_success',
           scheduleId: schedule.id,
@@ -366,7 +366,7 @@ export async function startSchedule(schedule: Schedule): Promise<void> {
         'Schedule started successfully'
       );
     } catch (cronError) {
-      logger.error(
+      error(
         {
           event: 'schedule_service_start_schedule_error',
           scheduleId: schedule.id,
@@ -388,7 +388,7 @@ export async function startSchedule(schedule: Schedule): Promise<void> {
     }
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_start_error',
         scheduleId: schedule.id,
@@ -408,7 +408,7 @@ export async function stopSchedule(scheduleId: string): Promise<void> {
   try {
     const task = activeSchedules.get(scheduleId);
     if (task) {
-      logger.info(
+      info(
         {
           event: 'schedule_service_stop_schedule',
           scheduleId,
@@ -418,7 +418,7 @@ export async function stopSchedule(scheduleId: string): Promise<void> {
       );
       task.stop();
       activeSchedules.delete(scheduleId);
-      logger.info(
+      info(
         {
           event: 'schedule_service_stop_schedule_success',
           scheduleId,
@@ -429,7 +429,7 @@ export async function stopSchedule(scheduleId: string): Promise<void> {
     }
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_stop_error',
         scheduleId,
@@ -447,7 +447,7 @@ export async function stopSchedule(scheduleId: string): Promise<void> {
  */
 async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
   try {
-    logger.info(
+    info(
       {
         event: 'schedule_service_execute_workflow',
         scheduleId: schedule.id,
@@ -483,7 +483,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
       });
     } catch (insertError) {
       // If there was an error with the insert, try a different approach
-      logger.error(
+      error(
         {
           event: 'schedule_service_task_log_insert_error',
           scheduleId: schedule.id,
@@ -511,7 +511,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
           userId: 'system-scheduler',
         });
       } catch (secondError) {
-        logger.error(
+        error(
           {
             event: 'schedule_service_task_log_insert_error_second_attempt',
             scheduleId: schedule.id,
@@ -527,7 +527,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
     }
     // Enqueue the job with the task ID
     await enqueueJob(taskId, 5); // Priority 5 for scheduled jobs
-    logger.info(
+    info(
       {
         event: 'schedule_service_execute_workflow_queued',
         scheduleId: schedule.id,
@@ -539,7 +539,7 @@ async function executeScheduledWorkflow(schedule: Schedule): Promise<void> {
     );
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_execute_workflow_error',
         scheduleId: schedule.id,
@@ -565,7 +565,7 @@ export async function executeWorkflowById(workflowId: string): Promise<void> {
     }
     // Skip if the workflow is already running or locked
     if (workflow.status === 'running' || workflow.locked) {
-      logger.info(
+      info(
         {
           event: 'schedule_service_execute_workflow_skip',
           workflowId,
@@ -577,7 +577,7 @@ export async function executeWorkflowById(workflowId: string): Promise<void> {
     }
     // Run the workflow
     const result = await runWorkflow(workflowId);
-    logger.info(
+    info(
       {
         event: 'schedule_service_execute_workflow_result',
         workflowId,
@@ -588,7 +588,7 @@ export async function executeWorkflowById(workflowId: string): Promise<void> {
     );
     // Continue execution if the workflow is paused (multi-step workflow)
     if (result.status === 'paused') {
-      logger.info(
+      info(
         {
           event: 'schedule_service_execute_workflow_continue',
           workflowId,
@@ -601,7 +601,7 @@ export async function executeWorkflowById(workflowId: string): Promise<void> {
     }
   } catch (error) {
     let errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'schedule_service_execute_workflow_by_id_error',
         workflowId,

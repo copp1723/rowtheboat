@@ -7,7 +7,7 @@
  * Provides functionality to send alert emails to administrators
  * TODO: Replace with real implementation
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 /**
  * Alert severity levels

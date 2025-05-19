@@ -4,7 +4,7 @@
  * Provides functionality to generate insights from parsed data
  * TODO: Replace with real implementation
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

@@ -8,7 +8,7 @@
 
 import cron from 'node-cron';
 import { runAllHealthChecks } from './healthService';
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 // Default schedule: every 5 minutes
 const DEFAULT_SCHEDULE = '*/5 * * * *';
