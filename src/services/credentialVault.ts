@@ -4,12 +4,12 @@
  * This service provides secure storage and retrieval of credentials
  * with encryption and user isolation.
  */
-import { db } from '../shared/db';
-import { credentials } from '../shared/schema';
+import { db } from '../shared/db.js';
+import { credentials } from '../shared/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { debug, info, warn, error } from '../shared/logger';
-import { encryptData, decryptData, isEncryptionConfigured } from '../utils/encryption';
-import { isError } from '../utils/errorUtils';
+import { debug, info, warn, error } from '../shared/logger.js';
+import { encryptData, decryptData, isEncryptionConfigured } from '../utils/encryption.js';
+import { isError } from '../utils/errorUtils.js';
 
 /**
  * Credential data interface

@@ -4,7 +4,7 @@
  * Provides default values for configuration options
  * These values are used when environment variables are not set
  */
-import { Environment, LogLevel } from './schema.js';
+import { Environment, LogLevel } from './schema';
 
 // Default environment
 export const DEFAULT_ENV: Environment = 'development';

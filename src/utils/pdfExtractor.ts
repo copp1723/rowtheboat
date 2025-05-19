@@ -8,7 +8,7 @@
 
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
-import { isError } from './errorUtils.js';
+import { isError } from './errorUtils';
 
 /**
  * PDF Extraction Mode

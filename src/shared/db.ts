@@ -17,7 +17,7 @@ import { PostgresJsDatabase } from 'drizzle-orm/postgres-js/driver';
 import postgres, { Sql } from 'postgres';
 import dotenv from 'dotenv';
 import { debug, info, warn, error } from './logger';
-import { isError } from '../utils/errorUtils';
+import { isError } from '../utils/errorUtils.js';
 import * as schema from './schema';
 import * as reportSchema from './report-schema';
 
@@ -177,13 +177,13 @@ export async function closeDatabase(): Promise<void> {
 
 // Handle process termination to close database connections
 process.on('SIGINT', async () => {
-  logger.info('SIGINT received, closing database connection');
+  info('SIGINT received, closing database connection');
   await closeDatabase();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, closing database connection');
+  info('SIGTERM received, closing database connection');
   await closeDatabase();
   process.exit(0);
 });

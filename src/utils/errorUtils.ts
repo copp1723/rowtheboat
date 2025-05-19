@@ -8,7 +8,7 @@ export interface ErrorWithMessage {
  * Type guard to check if an error is an instance of AppError
  * This delegates to the implementation in errorTypes.js
  */
-export { isAppError } from '../shared/errorTypes.js';
+export { isAppError, toAppError } from '../shared/errorTypes';
 
 export function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
   return (

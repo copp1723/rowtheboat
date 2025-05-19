@@ -8,11 +8,11 @@ import { workflows, WorkflowStatus, WorkflowStep, Workflow } from '../shared/sch
 import { eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 // Import step handlers
-import { stepHandlers } from './stepHandlers.js';
+import { stepHandlers } from './stepHandlers';
 // Import email service
-import { sendWorkflowCompletionEmail } from './workflowEmailServiceFixed.js';
+import { sendWorkflowCompletionEmail } from './workflowEmailServiceFixed';
 // Import logger
-import logger from '../utils/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 /**
  * Create a new workflow
  */
@@ -41,7 +41,7 @@ export async function createWorkflow(
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any); // Ensuring all required properties are provided.returning();
-    logger.info(
+    info(
       {
         event: 'workflow_created',
         workflowId: workflow.id,
@@ -139,7 +139,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
               const recipients = Array.isArray(context.notifyEmail)
                 ? context.notifyEmail
                 : [context.notifyEmail];
-              logger.debug(
+              debug(
                 {
                   event: 'email_completion_sending',
                   workflowId,
@@ -167,7 +167,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
               const recipients = Array.isArray(context.notifyEmail)
                 ? context.notifyEmail
                 : [context.notifyEmail];
-              logger.debug(
+              debug(
                 {
                   event: 'email_completion_sending',
                   workflowId,
@@ -179,7 +179,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
               await sendWorkflowCompletionEmail(finalWorkflow.id, recipients);
             }
           } else if (emailResult && emailResult.message) {
-            logger.info(
+            info(
               {
                 event: 'email_completion_sent',
                 workflowId,
@@ -203,7 +203,7 @@ export async function runWorkflow(workflowId: string): Promise<Workflow> {
       if (!handler) {
         throw new Error(`No handler found for step type ${currentStep.type}`);
       }
-      logger.debug(
+      debug(
         {
           event: 'step_execution_start',
           workflowId,
@@ -491,7 +491,7 @@ export async function configureWorkflowNotifications(
       })
       .where(eq(workflows.id, workflowId.toString()))
       .returning();
-    logger.info(
+    info(
       {
         event: 'workflow_notification_configured',
         workflowId,

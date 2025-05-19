@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { users } from '../shared/schema';
+import { users } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -52,7 +52,7 @@ vi.mock('../shared/db', () => {
 });
 
 // Import db after mocking
-import { db } from '../shared/db';
+import { db } from '../shared/db.js';
 
 describe('Drizzle ORM Upgrade', () => {
   const testUserId = uuidv4();

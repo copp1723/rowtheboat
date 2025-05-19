@@ -4,7 +4,7 @@
  * Provides integration with OpenAI API for AI completions and embeddings
  * TODO: Replace with real implementation
  */
-import { info, warn, error } from '../shared/logger';
+import { info, warn, error } from '../shared/logger.js';
 
 /**
  * Completion parameters

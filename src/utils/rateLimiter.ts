@@ -4,7 +4,7 @@
  * This utility provides a simple in-memory rate limiter for controlling
  * the rate of operations like API calls or IMAP requests.
  */
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 /**
  * Rate limiter options
  */
@@ -50,7 +50,7 @@ export class RateLimiter {
     this.maxRequests = options.maxRequests || 100;
     this.windowMs = options.windowMs || 60000; // Default: 1 minute
     this.onLimitReached = options.onLimitReached || (() => {});
-    logger.info(`Rate limiter "${name}" created: ${this.maxRequests} requests per ${this.windowMs}ms`);
+    info(`Rate limiter "${name}" created: ${this.maxRequests} requests per ${this.windowMs}ms`);
   }
   /**
    * Check if the rate limit is currently exceeded
@@ -84,7 +84,7 @@ export class RateLimiter {
         throw new Error(`Rate limit exceeded for "${this.name}": ${this.maxRequests} requests per ${this.windowMs}ms`);
       }
       // Wait for rate limit to clear
-      logger.info(`Rate limit for "${this.name}" reached, waiting...`);
+      info(`Rate limit for "${this.name}" reached, waiting...`);
       await this._waitForAvailability(maxWaitMs);
     }
     // Add current request
@@ -105,7 +105,7 @@ export class RateLimiter {
   public pause(reason: string = 'backpressure'): void {
     if (!this.paused) {
       this.paused = true;
-      logger.warn(`Rate limiter "${this.name}" paused: ${reason}`);
+      warn(`Rate limiter "${this.name}" paused: ${reason}`);
     }
   }
   /**
@@ -114,7 +114,7 @@ export class RateLimiter {
   public resume(): void {
     if (this.paused) {
       this.paused = false;
-      logger.info(`Rate limiter "${this.name}" resumed`);
+      info(`Rate limiter "${this.name}" resumed`);
       this._notifyWaiting();
     }
   }
@@ -164,7 +164,7 @@ export class RateLimiter {
     const toResolve = this.waitingPromises.slice(0, available);
     this.waitingPromises = this.waitingPromises.slice(available);
     if (toResolve.length > 0) {
-      logger.debug(`Resolving ${toResolve.length} waiting requests for "${this.name}"`);
+      debug(`Resolving ${toResolve.length} waiting requests for "${this.name}"`);
       toResolve.forEach(p => p.resolve());
     }
   }
@@ -174,13 +174,13 @@ export const imapRateLimiter = new RateLimiter('imap-operations', {
   maxRequests: 100,
   windowMs: 60000, // 1 minute
   onLimitReached: () => {
-    logger.warn('IMAP rate limit reached, throttling requests');
+    warn('IMAP rate limit reached, throttling requests');
   }
 });
 export const emailProcessingRateLimiter = new RateLimiter('email-processing', {
   maxRequests: 50,
   windowMs: 60000, // 1 minute
   onLimitReached: () => {
-    logger.warn('Email processing rate limit reached, throttling processing');
+    warn('Email processing rate limit reached, throttling processing');
   }
 });

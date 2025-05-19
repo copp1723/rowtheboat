@@ -1,6 +1,6 @@
 /**
  * Sentry Integration Service
- * 
+ *
  * This service provides integration with Sentry for error tracking and monitoring.
  * It configures Sentry SDK, sets up error handlers, and provides utility functions
  * for capturing errors and custom events.
@@ -24,11 +24,11 @@ import { ProfilingIntegration } from '@sentry/profiling-node';
 
 // Environment-specific configuration
 const SENTRY_ENVIRONMENT = process.env.NODE_ENV || 'development';
-const SENTRY_TRACES_SAMPLE_RATE = process.env.SENTRY_TRACES_SAMPLE_RATE 
-  ? parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE) 
+const SENTRY_TRACES_SAMPLE_RATE = process.env.SENTRY_TRACES_SAMPLE_RATE
+  ? parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE)
   : 0.2; // Default to 20% of transactions
-const SENTRY_PROFILES_SAMPLE_RATE = process.env.SENTRY_PROFILES_SAMPLE_RATE 
-  ? parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE) 
+const SENTRY_PROFILES_SAMPLE_RATE = process.env.SENTRY_PROFILES_SAMPLE_RATE
+  ? parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE)
   : 0.1; // Default to 10% of transactions
 
 /**
@@ -39,12 +39,12 @@ const SENTRY_PROFILES_SAMPLE_RATE = process.env.SENTRY_PROFILES_SAMPLE_RATE
 export function initializeSentry(dsn?: string): boolean {
   try {
     const sentryDsn = dsn || process.env.SENTRY_DSN;
-    
+
     if (!sentryDsn) {
       warn('Sentry DSN not provided, error tracking disabled');
       return false;
     }
-    
+
     Sentry.init({
       dsn: sentryDsn,
       environment: SENTRY_ENVIRONMENT,
@@ -61,12 +61,12 @@ export function initializeSentry(dsn?: string): boolean {
       // Set sampling rate for profiling
       profilesSampleRate: SENTRY_PROFILES_SAMPLE_RATE,
     });
-    
+
     info('Sentry initialized successfully');
     return true;
   } catch (err: unknown) {
     const caughtError = err instanceof Error ? err : new Error(String(err));
-    error('Failed to initialize Sentry', { 
+    error('Failed to initialize Sentry', {
       event: 'sentry_init_error',
       error: caughtError.message,
       stack: caughtError.stack
@@ -96,22 +96,22 @@ export function clearUserContext(): void {
 
 /**
  * Capture an error in Sentry
- * @param error Error to capture
+ * @param err Error to capture
  * @param context Additional context to include
  */
-export function captureError(error: unknown, context: Record<string, any> = {}): string {
+export function captureError(err: unknown, context: Record<string, any> = {}): string {
   try {
     // Ensure the error is an AppError or convert it to one
-    const appError: AppError = error instanceof Error ? 
-      (error as AppError) : 
-      new Error(String(error)) as AppError;
+    const appError: AppError = err instanceof Error ?
+      (err as AppError) :
+      new Error(String(err)) as AppError;
 
     // Set default properties if not already set
     if (!appError.statusCode) appError.statusCode = 500;
     if (appError.isOperational === undefined) appError.isOperational = false;
 
     const eventId = Sentry.captureException(appError);
-    
+
     // Log that we've captured the error
     info(`Error captured in Sentry with ID: ${eventId}`, {
       event: 'sentry_capture',
@@ -119,7 +119,7 @@ export function captureError(error: unknown, context: Record<string, any> = {}):
       statusCode: appError.statusCode,
       isOperational: appError.isOperational
     });
-    
+
     return eventId;
   } catch (captureError: unknown) {
     const caughtError = captureError instanceof Error ? captureError : new Error(String(captureError));
@@ -149,18 +149,18 @@ export function captureMessage(
     }
 
     // Normalize the message to string
-    const normalizedMessage = typeof message === 'string' ? message : 
-      message instanceof Error ? message.message : 
+    const normalizedMessage = typeof message === 'string' ? message :
+      message instanceof Error ? message.message :
       String(message);
 
     // Add custom context
     if (Object.keys(context).length > 0) {
       Sentry.setContext('message_context', context);
     }
-    
+
     // Capture the message
     const eventId = Sentry.captureMessage(normalizedMessage, level);
-    
+
     return eventId;
   } catch (err) {
     const errorObj = err instanceof Error ? err : new Error(String(err));

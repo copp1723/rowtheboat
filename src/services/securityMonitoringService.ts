@@ -3,7 +3,7 @@
  * 
  * Provides security monitoring and alerting functionality
  */
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { isError } from '../utils/errorUtils.js';
 import { db } from '../shared/db.js';
 import { securityAuditLogs } from '../shared/schema.js';
@@ -63,13 +63,13 @@ export async function initializeSecurityMonitoring(options?: {
 
     // Check if security monitoring is enabled
     if (!securityMonitoringConfig.enabled) {
-      logger.info('Security monitoring is disabled');
+      info('Security monitoring is disabled');
       return true;
     }
 
     // Validate cron schedule
     if (!cron.validate(securityMonitoringConfig.schedule)) {
-      logger.error(`Invalid cron schedule: ${securityMonitoringConfig.schedule}`);
+      error(`Invalid cron schedule: ${securityMonitoringConfig.schedule}`);
       return false;
     }
 
@@ -79,7 +79,7 @@ export async function initializeSecurityMonitoring(options?: {
         await checkSecurityEvents();
       } catch (error) {
         const errorMessage = isError(error) ? error.message : String(error);
-        logger.error({
+        error({
           event: 'security_monitoring_error',
           error: errorMessage,
         }, `Scheduled security monitoring failed: ${errorMessage}`);
@@ -87,7 +87,7 @@ export async function initializeSecurityMonitoring(options?: {
     });
 
     // Log initialization
-    logger.info({
+    info({
       event: 'security_monitoring_initialized',
       enabled: securityMonitoringConfig.enabled,
       schedule: securityMonitoringConfig.schedule,
@@ -97,7 +97,7 @@ export async function initializeSecurityMonitoring(options?: {
     return true;
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'security_monitoring_initialization_error',
       error: errorMessage,
     }, `Failed to initialize security monitoring service: ${errorMessage}`);
@@ -111,7 +111,7 @@ export async function initializeSecurityMonitoring(options?: {
  */
 async function checkSecurityEvents(): Promise<void> {
   try {
-    logger.debug('Running security event check');
+    debug('Running security event check');
 
     // Calculate the time window
     const timeWindow = new Date();
@@ -129,10 +129,10 @@ async function checkSecurityEvents(): Promise<void> {
     // Check for encryption failures
     await checkEncryptionFailures(timeWindow);
 
-    logger.debug('Security event check completed');
+    debug('Security event check completed');
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'security_event_check_error',
       error: errorMessage,
     }, `Failed to check security events: ${errorMessage}`);
@@ -165,7 +165,7 @@ async function checkFailedLogins(timeWindow: Date): Promise<void> {
     // Alert if any IP address exceeds the threshold
     if (failedLogins.length > 0) {
       for (const ip of failedLogins) {
-        logger.warn({
+        warn({
           event: 'security_alert_failed_logins',
           ipAddress: ip.ipAddress,
           count: ip.count,
@@ -179,7 +179,7 @@ async function checkFailedLogins(timeWindow: Date): Promise<void> {
     }
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'failed_logins_check_error',
       error: errorMessage,
     }, `Failed to check for failed logins: ${errorMessage}`);
@@ -212,7 +212,7 @@ async function checkApiKeyCreation(timeWindow: Date): Promise<void> {
     // Alert if any user exceeds the threshold
     if (apiKeyCreation.length > 0) {
       for (const user of apiKeyCreation) {
-        logger.warn({
+        warn({
           event: 'security_alert_api_key_creation',
           userId: user.userId,
           count: user.count,
@@ -225,7 +225,7 @@ async function checkApiKeyCreation(timeWindow: Date): Promise<void> {
     }
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'api_key_creation_check_error',
       error: errorMessage,
     }, `Failed to check for API key creation: ${errorMessage}`);
@@ -258,7 +258,7 @@ async function checkPermissionDenied(timeWindow: Date): Promise<void> {
     // Alert if any user exceeds the threshold
     if (permissionDenied.length > 0) {
       for (const user of permissionDenied) {
-        logger.warn({
+        warn({
           event: 'security_alert_permission_denied',
           userId: user.userId,
           count: user.count,
@@ -271,7 +271,7 @@ async function checkPermissionDenied(timeWindow: Date): Promise<void> {
     }
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'permission_denied_check_error',
       error: errorMessage,
     }, `Failed to check for permission denied events: ${errorMessage}`);
@@ -300,7 +300,7 @@ async function checkEncryptionFailures(timeWindow: Date): Promise<void> {
 
     // Alert if the count exceeds the threshold
     if (encryptionFailures.length > 0 && encryptionFailures[0].count >= securityMonitoringConfig.alertThresholds.encryptionFailures) {
-      logger.warn({
+      warn({
         event: 'security_alert_encryption_failures',
         count: encryptionFailures[0].count,
         threshold: securityMonitoringConfig.alertThresholds.encryptionFailures,
@@ -311,7 +311,7 @@ async function checkEncryptionFailures(timeWindow: Date): Promise<void> {
     }
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'encryption_failures_check_error',
       error: errorMessage,
     }, `Failed to check for encryption failures: ${errorMessage}`);
@@ -325,7 +325,7 @@ export function stopSecurityMonitoring(): void {
   if (scheduledJob) {
     scheduledJob.stop();
     scheduledJob = null;
-    logger.info('Security monitoring service stopped');
+    info('Security monitoring service stopped');
   }
 }
 

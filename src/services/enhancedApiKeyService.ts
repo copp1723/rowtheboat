@@ -7,11 +7,11 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../shared/db.js';
 import { apiKeys } from '../shared/schema.js';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { isError } from '../utils/errorUtils.js';
-import { encryptData, decryptData, isEncryptionConfigured } from './kmsEncryptionService.js';
-import { logSecurityEvent } from './awsKmsService.js';
-import { updateApiKeyPermissions } from './rbacService.js';
+import { encryptData, decryptData, isEncryptionConfigured } from './kmsEncryptionService';
+import { logSecurityEvent } from './awsKmsService';
+import { updateApiKeyPermissions } from './rbacService';
 
 /**
  * API Key data interface
@@ -49,7 +49,7 @@ export async function addApiKey(
 ): Promise<any> {
   // Verify encryption is configured properly
   if (!isEncryptionConfigured()) {
-    logger.warn('Warning: Using default encryption key. Set ENCRYPTION_KEY in production.');
+    warn('Warning: Using default encryption key. Set ENCRYPTION_KEY in production.');
   }
 
   try {
@@ -104,7 +104,7 @@ export async function addApiKey(
         : String(error) 
       : String(error);
     
-    logger.error({
+    error({
       event: 'api_key_creation_error',
       error: errorMessage,
       userId,
@@ -173,7 +173,7 @@ export async function getApiKeys(userId: string, service?: string): Promise<any[
         : String(error) 
       : String(error);
     
-    logger.error({
+    error({
       event: 'api_keys_retrieval_error',
       error: errorMessage,
       userId,
@@ -243,7 +243,7 @@ export async function getApiKeyById(id: string, userId: string): Promise<any> {
         : String(error) 
       : String(error);
     
-    logger.error({
+    error({
       event: 'api_key_retrieval_error',
       error: errorMessage,
       userId,
@@ -366,7 +366,7 @@ export async function updateApiKey(
         : String(error) 
       : String(error);
     
-    logger.error({
+    error({
       event: 'api_key_update_error',
       error: errorMessage,
       userId,
@@ -429,7 +429,7 @@ export async function deleteApiKey(id: string, userId: string): Promise<boolean>
         : String(error) 
       : String(error);
     
-    logger.error({
+    error({
       event: 'api_key_deletion_error',
       error: errorMessage,
       userId,

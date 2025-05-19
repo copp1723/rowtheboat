@@ -3,9 +3,9 @@
  * 
  * This script runs database migrations in sequence
  */
-import { db } from '../shared/db.js';
-import { logger } from '../shared/logger.js';
-import { isError } from '../utils/errorUtils.js';
+import { db } from '../shared/db';
+import { debug, info, warn, error } from '../shared/logger';
+import { isError } from '../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import dotenv from 'dotenv';
 
@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Import migrations
-import addApiKeySecurityFields from './add-api-key-security-fields.js';
+import addApiKeySecurityFields from './add-api-key-security-fields';
 
 // List of migrations to run in order
 const migrations = [
@@ -34,7 +34,7 @@ async function ensureMigrationsTable(): Promise<void> {
     `);
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error(`Failed to create migrations table: ${errorMessage}`);
+    error(`Failed to create migrations table: ${errorMessage}`);
     throw error;
   }
 }
@@ -53,7 +53,7 @@ async function isMigrationApplied(name: string): Promise<boolean> {
     return result.length > 0;
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error(`Failed to check migration status: ${errorMessage}`);
+    error(`Failed to check migration status: ${errorMessage}`);
     throw error;
   }
 }
@@ -70,7 +70,7 @@ async function recordMigration(name: string): Promise<void> {
     `);
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error(`Failed to record migration: ${errorMessage}`);
+    error(`Failed to record migration: ${errorMessage}`);
     throw error;
   }
 }
@@ -80,7 +80,7 @@ async function recordMigration(name: string): Promise<void> {
  */
 async function runMigrations(): Promise<void> {
   try {
-    logger.info('Starting database migrations');
+    info('Starting database migrations');
     
     // Ensure migrations table exists
     await ensureMigrationsTable();
@@ -92,28 +92,28 @@ async function runMigrations(): Promise<void> {
       // Check if migration has already been applied
       const applied = await isMigrationApplied(name);
       if (applied) {
-        logger.info(`Migration already applied: ${name}`);
+        info(`Migration already applied: ${name}`);
         continue;
       }
       
       // Run the migration
-      logger.info(`Applying migration: ${name}`);
+      info(`Applying migration: ${name}`);
       const success = await migrate();
       
       if (success) {
         // Record the migration as applied
         await recordMigration(name);
-        logger.info(`Migration applied successfully: ${name}`);
+        info(`Migration applied successfully: ${name}`);
       } else {
-        logger.error(`Migration failed: ${name}`);
+        error(`Migration failed: ${name}`);
         throw new Error(`Migration failed: ${name}`);
       }
     }
     
-    logger.info('All migrations completed successfully');
+    info('All migrations completed successfully');
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error(`Migration process failed: ${errorMessage}`);
+    error(`Migration process failed: ${errorMessage}`);
     throw error;
   }
 }
@@ -127,7 +127,7 @@ async function main() {
     process.exit(0);
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error(`Migration failed: ${errorMessage}`);
+    error(`Migration failed: ${errorMessage}`);
     process.exit(1);
   }
 }

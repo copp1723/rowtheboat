@@ -9,7 +9,7 @@ import {
   rateLimiters,
   detectSuspiciousPatterns
 } from '../../shared/middleware/rateLimiter.js';
-import { logger } from '../../shared/logger.js';
+import { debug, info, warn, error } from '../../shared/logger.js';
 import {
   addApiKey,
   getApiKeys,
@@ -27,7 +27,7 @@ router.use(isAuthenticated); // Require authentication
 
 // Log all API key operations for security auditing
 router.use((req, res, next) => {
-  logger.info(`API Key operation: ${req.method} ${req.path}`, {
+  info(`API Key operation: ${req.method} ${req.path}`, {
     ip: req.ip,
     userId: req.user?.claims?.sub,
     method: req.method,

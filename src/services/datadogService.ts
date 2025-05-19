@@ -5,7 +5,7 @@
  * It configures the DataDog SDK, sets up metrics tracking, and provides utility functions
  * for capturing performance data and system metrics.
  */
-import { debug, info, warn, error } from '../shared/logger';
+import { debug, info, warn, error } from '../shared/logger.js';
 import os from 'os';
 
 // Track initialization status
