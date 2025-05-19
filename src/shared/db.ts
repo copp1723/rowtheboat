@@ -16,9 +16,10 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js/driver';
 import postgres, { Sql } from 'postgres';
 import dotenv from 'dotenv';
-import logger from '../utils/logger';
-import * as schema from './schema.js';
-import * as reportSchema from './report-schema.js';
+import { debug, info, warn, error } from './logger';
+import { isError } from '../utils/errorUtils';
+import * as schema from './schema';
+import * as reportSchema from './report-schema';
 
 // Load environment variables
 dotenv.config();
@@ -74,7 +75,7 @@ function getDatabaseConfig(): DbConfig {
   // First try to use the DATABASE_URL environment variable
   if (process.env.DATABASE_URL) {
     config.connectionString = process.env.DATABASE_URL;
-    logger.info('Using DATABASE_URL for database connection');
+    info('Using DATABASE_URL for database connection');
     return config;
   }
 
@@ -94,7 +95,7 @@ function getDatabaseConfig(): DbConfig {
 
     // Build connection string
     config.connectionString = `postgres://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`;
-    logger.info('Using PostgreSQL environment variables for database connection');
+    info('Using PostgreSQL environment variables for database connection');
     return config;
   }
 
@@ -117,7 +118,7 @@ function createDatabaseClient(config: DbConfig): Sql<{}> {
 
   // Log connection attempt (masking password)
   const maskedConnectionString = config.connectionString.replace(/:[^:]+@/, ':***@');
-  logger.info(`Connecting to database: ${maskedConnectionString}`);
+  info(`Connecting to database: ${maskedConnectionString}`);
 
   // Create postgres client with connection options
   return postgres(config.connectionString, {
@@ -129,7 +130,7 @@ function createDatabaseClient(config: DbConfig): Sql<{}> {
       application_name: config.applicationName,
     },
     onnotice: (notice) => {
-      logger.debug({
+      debug('PostgreSQL notice', {
         event: 'postgres_notice',
         message: notice.message,
         severity: notice.severity,
@@ -162,14 +163,14 @@ export const db = drizzle(client, {
  */
 export async function closeDatabase(): Promise<void> {
   try {
-    logger.info('Closing database connection');
+    info('Closing database connection');
     await client.end();
-    logger.info('Database connection closed');
-  } catch (error) {
-    logger.error({
+    info('Database connection closed');
+  } catch (err) {
+    error('Database connection close error', {
       event: 'database_close_error',
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+      error: isError(err) ? err.message : String(err),
+      stack: isError(err) ? err.stack : undefined,
     });
   }
 }
