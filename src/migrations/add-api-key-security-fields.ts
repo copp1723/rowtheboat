@@ -11,16 +11,16 @@
  * - previousKeyId: Reference to previous version of this key
  */
 import { sql } from 'drizzle-orm';
-import { db } from '../shared/db.js';
-import { logger } from '../shared/logger.js';
-import { isError } from '../utils/errorUtils.js';
+import { db } from '../shared/db';
+import { debug, info, warn, error } from '../shared/logger';
+import { isError } from '../utils/errorUtils';
 
 /**
  * Run the migration
  */
 export async function migrate(): Promise<boolean> {
   try {
-    logger.info('Starting migration: Add API Key Security Fields');
+    info('Starting migration: Add API Key Security Fields');
 
     // Check if the columns already exist
     const checkResult = await db.execute(sql`
@@ -31,7 +31,7 @@ export async function migrate(): Promise<boolean> {
 
     // If the column already exists, skip the migration
     if (checkResult.length > 0) {
-      logger.info('Migration already applied, skipping');
+      info('Migration already applied, skipping');
       return true;
     }
 
@@ -54,11 +54,11 @@ export async function migrate(): Promise<boolean> {
       CREATE INDEX IF NOT EXISTS idx_api_keys_rotation_status ON api_keys(rotation_status);
     `);
 
-    logger.info('Migration completed successfully: Add API Key Security Fields');
+    info('Migration completed successfully: Add API Key Security Fields');
     return true;
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'migration_error',
       migration: 'add_api_key_security_fields',
       error: errorMessage,
@@ -72,7 +72,7 @@ export async function migrate(): Promise<boolean> {
  */
 export async function rollback(): Promise<boolean> {
   try {
-    logger.info('Starting rollback: Add API Key Security Fields');
+    info('Starting rollback: Add API Key Security Fields');
 
     // Drop the indexes
     await db.execute(sql`
@@ -93,11 +93,11 @@ export async function rollback(): Promise<boolean> {
       DROP COLUMN IF EXISTS previous_key_id
     `);
 
-    logger.info('Rollback completed successfully: Add API Key Security Fields');
+    info('Rollback completed successfully: Add API Key Security Fields');
     return true;
   } catch (error) {
     const errorMessage = isError(error) ? error.message : String(error);
-    logger.error({
+    error({
       event: 'migration_rollback_error',
       migration: 'add_api_key_security_fields',
       error: errorMessage,

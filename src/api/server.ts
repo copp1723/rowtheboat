@@ -1,32 +1,32 @@
 // src/api/server.ts
 import express, { Request, Response } from 'express';
-import { isError } from '../utils/errorUtils';
-import { routeHandler } from '../utils/routeHandler';
-import parseTask from '../services/taskParser';
-import { getTaskLogs } from '../shared/logger';
+import { isError } from '../utils/errorUtils.js';
+import { routeHandler } from '../utils/routeHandler.js';
+import parseTask from '../services/taskParser.js';
+import { getTaskLogs } from '../shared/logger.js';
 import crypto from 'crypto';
-import { registerAuthRoutes } from '../server/routes/index';
-import { initializeJobQueue } from '../services/jobQueue';
-import { initializeScheduler } from '../services/schedulerService';
-import { initializeMailer } from '../services/mailerService';
-import { startAllHealthChecks } from '../services/healthCheckScheduler';
-import jobsRouter from '../server/routes/jobs';
-import workflowsRouter from '../server/routes/workflows';
-import { rateLimiters } from '../shared/middleware/rateLimiter';
-import { errorHandlerMiddleware } from '../shared/errorHandler';
-import { initializeEncryption } from '../utils/encryption';
-import { logger } from '../shared/logger';
-import config from '../config/index';
+import { registerAuthRoutes } from '../server/routes/index.js';
+import { initializeJobQueue } from '../services/jobQueue.js';
+import { initializeScheduler } from '../services/schedulerService.js';
+import { initializeMailer } from '../services/mailerService.js';
+import { startAllHealthChecks } from '../services/healthCheckScheduler.js';
+import jobsRouter from '../server/routes/jobs.js';
+import workflowsRouter from '../server/routes/workflows.js';
+import { rateLimiters } from '../shared/middleware/rateLimiter.js';
+import { errorHandlerMiddleware } from '../shared/errorHandler.js';
+import { initializeEncryption } from '../utils/encryption.js';
+import { debug, info, warn, error } from '../shared/logger';
+import config from '../config/index.js';
 import { setupSwagger } from './middleware/swagger';
-import * as monitoringService from '../services/monitoringService';
-import { registerMonitoringMiddleware } from '../middleware/monitoringMiddleware';
-import { registerMonitoringRoutes } from '../server/routes/monitoring';
-import setDbContext from '../middleware/dbContextMiddleware';
-import { performanceMonitoring } from '../middleware/performance';
-import { taskLogs } from '../shared/schema';
+import * as monitoringService from '../services/monitoringService.js';
+import { registerMonitoringMiddleware } from '../middleware/monitoringMiddleware.js';
+import { registerMonitoringRoutes } from '../server/routes/monitoring.js';
+import setDbContext from '../middleware/dbContextMiddleware.js';
+import { performanceMonitoring } from '../middleware/performance.js';
+import { taskLogs } from '../shared/schema.js';
 
 // Log startup information
-logger.info(
+info(
   {
     event: 'server_startup',
     environment: config.env,
@@ -61,12 +61,12 @@ async function startServer(): Promise<import('http').Server> {
     try {
       // Initialize monitoring services
       const monitoringStatus = await monitoringService.initialize();
-      logger.info(`Monitoring services initialized: Sentry=${monitoringStatus.sentryInitialized}, DataDog=${monitoringStatus.datadogInitialized}`);
+      info(`Monitoring services initialized: Sentry=${monitoringStatus.sentryInitialized}, DataDog=${monitoringStatus.datadogInitialized}`);
 
       // Start performance monitoring
-      import { startPerformanceMonitoring } from '../services/performanceMonitor';
+      import { startPerformanceMonitoring } from '../services/performanceMonitor.js';
       startPerformanceMonitoring();
-      logger.info('Performance monitoring started');
+      info('Performance monitoring started');
 
       // Initialize job queue service
       await initializeJobQueue();
@@ -148,8 +148,8 @@ async function startServer(): Promise<import('http').Server> {
     '/performance',
     routeHandler(async (_req: Request, res: Response) => {
       // Import performance metrics functions
-      const { getPerformanceMetrics } = await import('../middleware/performance');
-      const { getSystemMetrics, getMetricsHistory } = await import('../services/performanceMonitor');
+      const { getPerformanceMetrics } = await import('../middleware/performance.js');
+      const { getSystemMetrics, getMetricsHistory } = await import('../services/performanceMonitor.js');
 
       // Get metrics
       const performanceMetrics = getPerformanceMetrics();
@@ -174,8 +174,8 @@ async function startServer(): Promise<import('http').Server> {
     })
   );
   // Import job queue and database dependencies
-  import { enqueueJob } from '../services/jobQueue';
-  import { db } from '../shared/db';
+  import { enqueueJob } from '../services/jobQueue.js';
+  import { db } from '../shared/db.js';
   // API endpoint to submit a new task
   app.post('/api/tasks', rateLimiters.taskSubmission, async (req: Request, res: Response) => {
     try {
@@ -259,7 +259,7 @@ async function startServer(): Promise<import('http').Server> {
 
   console.log('[5/5] Starting server...');
   const server = app.listen(config.server.port, config.server.host, () => {
-    logger.info(`Server running on ${config.server.host}:${config.server.port}`);
+    info(`Server running on ${config.server.host}:${config.server.port}`);
   }).on('error', (err) => {
     console.error('Server failed to start:', err);
     process.exit(1);
@@ -273,20 +273,20 @@ async function startServer(): Promise<import('http').Server> {
 
   // Handle graceful shutdown
   process.on('SIGTERM', async () => {
-    logger.info('SIGTERM received, shutting down gracefully');
+    info('SIGTERM received, shutting down gracefully');
 
     // Shutdown monitoring services
     await monitoringService.shutdown();
 
     // Close server
     server.close(() => {
-      logger.info('Server closed');
+      info('Server closed');
       process.exit(0);
     });
 
     // Force close after timeout
     setTimeout(() => {
-      logger.error('Forced shutdown after timeout');
+      error('Forced shutdown after timeout');
       process.exit(1);
     }, 10000);
   });

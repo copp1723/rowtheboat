@@ -9,12 +9,12 @@ import { Readable } from 'stream';
 import ExcelJS from 'exceljs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BaseParser } from '../base/BaseParser.js';
-import { FileType, ParserOptions, ParserResult } from '../base/types.js';
-import { ParseError } from '../errors/ParserError.js';
-import logger from '../../utils/logger.js';
-import { getErrorMessage } from '../../utils/errorUtils.js';
-import { streamToTempFile, cleanupTempFiles } from '../utils/fileUtils.js';
+import { BaseParser } from '../base/BaseParser';
+import { FileType, ParserOptions, ParserResult } from '../base/types';
+import { ParseError } from '../errors/ParserError';
+import { debug, info, warn, error } from '../../shared/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
+import { streamToTempFile, cleanupTempFiles } from '../utils/fileUtils';
 
 /**
  * XLSX parser options
@@ -119,7 +119,7 @@ export class XLSXParser extends BaseParser {
       const validatedRecords = this.validateWithSchema(allRecords, options.schema);
       
       // Log successful parsing
-      logger.info({
+      info({
         event: 'parsed_xlsx_records',
         file: options._fileName || 'unknown',
         recordCount: validatedRecords.length,
@@ -139,7 +139,7 @@ export class XLSXParser extends BaseParser {
       });
     } catch (error) {
       // Log error
-      logger.error({
+      error({
         event: 'xlsx_parser_error',
         file: options._fileName || 'unknown',
         error: error instanceof Error ? error.message : String(error),

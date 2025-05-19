@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../shared/db.js';
 import { reports, reportSources } from '../shared/report-schema.js';
 import { eq, and } from 'drizzle-orm';
-import { ParserResult } from './attachmentParsers.js';
+import { ParserResult } from './attachmentParsers';
 // Interface for storing results
 export interface StorageResult {
   id: string;

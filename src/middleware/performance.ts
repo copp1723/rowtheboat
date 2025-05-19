@@ -4,7 +4,7 @@
  * This middleware tracks request performance metrics and logs them.
  */
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger';
 
 // Performance metrics storage
 interface PerformanceMetrics {
@@ -85,7 +85,7 @@ export function performanceMonitoring(req: Request, res: Response, next: NextFun
       }
 
       // Log slow request
-      logger.warn({
+      warn({
         event: 'slow_request',
         method: req.method,
         path: req.path,

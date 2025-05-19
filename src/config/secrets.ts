@@ -5,7 +5,7 @@
  */
 import crypto from 'crypto';
 import { debug, info, warn, error } from '../shared/logger';
-import { INSECURE_DEFAULT_VALUES } from './defaults.js';
+import { INSECURE_DEFAULT_VALUES } from './defaults';
 
 // Encryption key for secrets
 let encryptionKey: Buffer | null = null;

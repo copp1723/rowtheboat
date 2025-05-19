@@ -5,8 +5,8 @@
  */
 
 import { performance } from 'perf_hooks';
-import { FileType } from '../base/types.js';
-import logger from '../../utils/logger.js';
+import { FileType } from '../base/types';
+import { debug, info, warn, error } from '../../shared/logger';
 
 // Metrics storage
 interface ParserMetrics {
@@ -73,7 +73,7 @@ export function recordParseStart(
   const startTime = performance.now();
   
   // Log parse start
-  logger.debug({
+  debug({
     event: 'parser_start',
     id,
     fileType,
@@ -150,7 +150,7 @@ export function recordParseComplete(
   }
   
   // Log parse completion
-  logger.info({
+  info({
     event: success ? 'parser_success' : 'parser_failure',
     id,
     fileType,
@@ -164,7 +164,7 @@ export function recordParseComplete(
   
   // Log memory usage
   const memoryUsage = process.memoryUsage();
-  logger.debug({
+  debug({
     event: 'parser_memory_usage',
     id,
     fileType,
@@ -193,7 +193,7 @@ export function recordDuplicate(
 ): void {
   metrics.totalDuplicates++;
   
-  logger.info({
+  info({
     event: 'parser_duplicate',
     fileType,
     fileName,

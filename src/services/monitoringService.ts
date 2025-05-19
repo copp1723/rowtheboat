@@ -5,11 +5,11 @@
  * It integrates with Sentry for error tracking and DataDog for performance monitoring,
  * and provides utility functions for tracking errors, performance, and system health.
  */
-import * as sentryService from './sentryService.js';
-import * as datadogService from './datadogService.js';
-import { logger } from '../shared/logger.js';
+import * as sentryService from './sentryService';
+import * as datadogService from './datadogService';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { isError } from '../utils/errorUtils.js';
-import { sendAdminAlert, sendImmediateAdminAlert } from './alertMailer.js';
+import { sendAdminAlert, sendImmediateAdminAlert } from './alertMailer';
 import { db } from '../shared/db.js';
 import { healthChecks, healthLogs } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
@@ -51,7 +51,7 @@ export async function initialize(): Promise<{
   try {
     // Check if monitoring is enabled
     if (!monitoringConfig.enabled) {
-      logger.info('Monitoring is disabled by configuration');
+      info('Monitoring is disabled by configuration');
       return {
         sentryInitialized: false,
         datadogInitialized: false,
@@ -65,7 +65,7 @@ export async function initialize(): Promise<{
     datadogInitialized = datadogService.initializeDataDog();
 
     // Log initialization status
-    logger.info(`Monitoring service initialized: Sentry=${sentryInitialized}, DataDog=${datadogInitialized}`);
+    info(`Monitoring service initialized: Sentry=${sentryInitialized}, DataDog=${datadogInitialized}`);
 
     // Start system resource tracking if DataDog is initialized
     if (datadogInitialized) {
@@ -77,7 +77,7 @@ export async function initialize(): Promise<{
       datadogInitialized,
     };
   } catch (error) {
-    logger.error('Failed to initialize monitoring service:', isError(error) ? error : String(error));
+    error('Failed to initialize monitoring service:', isError(error) ? error : String(error));
     return {
       sentryInitialized: false,
       datadogInitialized: false,
@@ -126,7 +126,7 @@ export function trackError(
           },
         }
       ).catch(alertError => {
-        logger.error('Failed to send critical error alert:',
+        error('Failed to send critical error alert:',
           isError(alertError) ? alertError : String(alertError)
         );
       });
@@ -152,7 +152,7 @@ export function trackError(
 
     return '';
   } catch (trackError) {
-    logger.error('Failed to track error:', isError(trackError) ? trackError : String(trackError));
+    error('Failed to track error:', isError(trackError) ? trackError : String(trackError));
     return '';
   }
 }
@@ -201,7 +201,7 @@ export function trackApiRequest(
           },
         }
       ).catch(alertError => {
-        logger.error('Failed to send error rate alert:',
+        error('Failed to send error rate alert:',
           isError(alertError) ? alertError : String(alertError)
         );
       });
@@ -209,7 +209,7 @@ export function trackApiRequest(
 
     // Check if response time exceeds threshold
     if (durationMs > API_RESPONSE_TIME_THRESHOLD) {
-      logger.warn(`Slow API response: ${method} ${path} took ${durationMs}ms`);
+      warn(`Slow API response: ${method} ${path} took ${durationMs}ms`);
 
       // Track in DataDog if initialized
       if (datadogInitialized) {
@@ -225,7 +225,7 @@ export function trackApiRequest(
       datadogService.trackApiRequest(method, path, statusCode, durationMs);
     }
   } catch (error) {
-    logger.error('Failed to track API request:', isError(error) ? error : String(error));
+    error('Failed to track API request:', isError(error) ? error : String(error));
   }
 }
 
@@ -245,7 +245,7 @@ export function trackDatabaseQuery(
   try {
     // Check if query duration exceeds threshold
     if (durationMs > DB_QUERY_DURATION_THRESHOLD) {
-      logger.warn(`Slow database query: ${operation} on ${table} took ${durationMs}ms`);
+      warn(`Slow database query: ${operation} on ${table} took ${durationMs}ms`);
 
       // Track in DataDog if initialized
       if (datadogInitialized) {
@@ -261,7 +261,7 @@ export function trackDatabaseQuery(
       datadogService.trackDatabaseQuery(operation, table, durationMs, success);
     }
   } catch (error) {
-    logger.error('Failed to track database query:', isError(error) ? error : String(error));
+    error('Failed to track database query:', isError(error) ? error : String(error));
   }
 }
 
@@ -278,7 +278,7 @@ function startResourceTracking(intervalMs: number = 60000): void {
     datadogService.trackSystemResources();
   }, intervalMs);
 
-  logger.info(`System resource tracking started with interval of ${intervalMs}ms`);
+  info(`System resource tracking started with interval of ${intervalMs}ms`);
 }
 
 /**
@@ -296,9 +296,9 @@ export async function shutdown(): Promise<void> {
       await datadogService.flushMetrics();
     }
 
-    logger.info('Monitoring service shut down successfully');
+    info('Monitoring service shut down successfully');
   } catch (error) {
-    logger.error('Error shutting down monitoring service:', isError(error) ? error : String(error));
+    error('Error shutting down monitoring service:', isError(error) ? error : String(error));
   }
 }
 

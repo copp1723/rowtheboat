@@ -4,7 +4,7 @@
  * This service provides functions for monitoring and analyzing application performance.
  */
 import os from 'os';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { db } from '../shared/db.js';
 import { sql } from 'drizzle-orm';
 import { getPerformanceMetrics } from '../middleware/performance.js';
@@ -105,9 +105,9 @@ export async function collectPerformanceMetrics(): Promise<void> {
     // Store metrics in database
     await storeMetricsInDatabase(systemMetrics, appMetrics, cacheStats);
     
-    logger.debug('Performance metrics collected');
+    debug('Performance metrics collected');
   } catch (error) {
-    logger.error('Error collecting performance metrics:', error);
+    error('Error collecting performance metrics:', error);
   }
 }
 
@@ -154,7 +154,7 @@ async function storeMetricsInDatabase(
     // Clean up old metrics
     await cleanupOldMetrics();
   } catch (error) {
-    logger.error('Error storing metrics in database:', error);
+    error('Error storing metrics in database:', error);
   }
 }
 
@@ -176,7 +176,7 @@ async function checkTableExists(tableName: string): Promise<boolean> {
     
     return result.rows[0].exists;
   } catch (error) {
-    logger.error('Error checking if table exists:', error);
+    error('Error checking if table exists:', error);
     return false;
   }
 }
@@ -202,9 +202,9 @@ async function createMetricsTable(): Promise<void> {
       ON ${PERFORMANCE_METRICS_TABLE} (timestamp)
     `));
     
-    logger.info(`Created ${PERFORMANCE_METRICS_TABLE} table`);
+    info(`Created ${PERFORMANCE_METRICS_TABLE} table`);
   } catch (error) {
-    logger.error('Error creating metrics table:', error);
+    error('Error creating metrics table:', error);
   }
 }
 
@@ -218,7 +218,7 @@ async function cleanupOldMetrics(): Promise<void> {
       WHERE timestamp < NOW() - INTERVAL '24 hours'
     `));
   } catch (error) {
-    logger.error('Error cleaning up old metrics:', error);
+    error('Error cleaning up old metrics:', error);
   }
 }
 
@@ -232,7 +232,7 @@ export function startPerformanceMonitoring(): void {
   // Set up interval for collecting metrics
   setInterval(collectPerformanceMetrics, METRICS_COLLECTION_INTERVAL);
   
-  logger.info('Performance monitoring started');
+  info('Performance monitoring started');
 }
 
 /**

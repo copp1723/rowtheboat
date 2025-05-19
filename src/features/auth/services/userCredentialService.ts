@@ -5,10 +5,11 @@
  * with enhanced encryption and security audit logging.
  */
 import { eq, and, desc } from 'drizzle-orm';
-import { isError } from '../../../../utils/errorUtils.js';
-import { db } from '../../../../shared/db.js';
-import { encryptData, decryptData, isEncryptionConfigured, logSecurityEvent } from '../../../../utils/encryption.js';
-import { logger } from '../../../../shared/logger.js';
+import { isError } from '../../../../utils/errorUtils';
+import { db } from '../../../../shared/db';
+import { userCredentials } from '../../../../shared/schema';
+import { encryptData, decryptData, isEncryptionConfigured, logSecurityEvent } from '../../../../utils/encryption';
+import { debug, info, warn, error } from '../../../../shared/logger';
 
 // Use the schema-generated types for database operations
 
@@ -72,11 +73,8 @@ export async function addUserCredential(
   // Verify encryption is configured properly
   if (!isEncryptionConfigured()) {
     if (process.env.NODE_ENV === 'production') {
-      const error = new Error('Cannot add credentials: Encryption not properly configured');
-      logger.error(
-        'Security violation: Attempted to add credentials without proper encryption',
-        error
-      );
+      const err = new Error('Cannot add credentials: Encryption not properly configured');
+      error('Security violation: Attempted to add credentials without proper encryption', err);
       // Log security event
       await logSecurityEvent(
         'encryption_not_configured',
@@ -84,9 +82,9 @@ export async function addUserCredential(
         { serviceName, action: 'add_credential' },
         'critical'
       );
-      throw error;
+      throw err;
     }
-    logger.warn('Using default encryption key in development. Set ENCRYPTION_KEY for production.');
+    warn('Using default encryption key in development. Set ENCRYPTION_KEY for production.');
   }
   try {
     // Encrypt the credential data
@@ -119,14 +117,14 @@ export async function addUserCredential(
       'info'
     );
     return createdCredential;
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && errorMessage !== 'Credential not found or access denied'
+      isCredentialError(err) && errorMessage !== 'Credential not found or access denied'
     ) {
-      logger.error('Error saving credential:', error);
+      error('Error saving credential:', err);
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -192,14 +190,14 @@ export async function getUserCredentialById(
       credential,
       payload,
     };
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && errorMessage !== 'Credential not found or access denied'
+      isCredentialError(err) && errorMessage !== 'Credential not found or access denied'
     ) {
-      logger.error('Error loading credential:', error);
+      error('Error loading credential:', err);
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -236,9 +234,9 @@ export async function getUserCredentials(
       'info'
     );
     return results;
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    logger.error('Failed to list user credentials:', error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
+    error('Failed to list user credentials:', err);
     // Log security event
     await logSecurityEvent(
       'credentials_list_error',
@@ -329,14 +327,14 @@ export async function updateUserCredential(
       'info'
     );
     return updatedCredential;
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && errorMessage !== 'Credential not found or access denied'
+      isCredentialError(err) && errorMessage !== 'Credential not found or access denied'
     ) {
-      logger.error('Error saving credential:', error);
+      error('Error saving credential:', err);
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -391,14 +389,14 @@ export async function deleteUserCredential(id: string, userId: string): Promise<
       'info'
     );
     return !!updated;
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && errorMessage !== 'Credential not found or access denied'
+      isCredentialError(err) && errorMessage !== 'Credential not found or access denied'
     ) {
-      logger.error('Error deleting credential:', error);
+      error('Error deleting credential:', err);
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -455,12 +453,12 @@ export async function hardDeleteUserCredential(
       'critical' // Hard deletion is a critical security event
     );
     return true;
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && errorMessage !== 'Credential not found'
+      isCredentialError(err) && errorMessage !== 'Credential not found'
     ) {
-      logger.error('Failed to hard delete user credential:', error);
+      error('Failed to hard delete user credential:', err);
       // Log security event
       await logSecurityEvent(
         'credential_hard_deletion_error',
@@ -473,7 +471,7 @@ export async function hardDeleteUserCredential(
         'error'
       );
     }
-    throw error;
+    throw err;
   }
 }
 
@@ -549,13 +547,13 @@ export async function getUserCredentialByService(
       credential,
       payload,
     };
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
+  } catch (err) {
+    const errorMessage = getErrorMessage(err);
     if (
-      isCredentialError(error) && !errorMessage.includes('No active credential found')
+      isCredentialError(err) && !errorMessage.includes('No active credential found')
     ) {
-      logger.error('Error getting active credential:', error);
+      error('Error getting active credential:', err);
     }
-    throw error;
+    throw err;
   }
 }

@@ -1,10 +1,10 @@
 /**
  * AI Core Module
- * 
+ *
  * This module exports the AI core functionality, including OpenAI integration,
  * prompt templates, audit logging, and model fallback.
  */
-import { OpenAIService, openai } from './openai.js';
+import { OpenAIService, openai } from './openai';
 import {
   initializePromptSystem,
   getPromptTemplate,
@@ -14,20 +14,20 @@ import {
   checkForPromptUpdates,
   type PromptTemplate,
   type PromptMetadata,
-} from './promptTemplate.js';
+} from './promptTemplate';
 import {
   logLLMInteraction,
   getLLMUsageStats,
   getRecentLLMInteractions,
   calculateLLMCost,
   type LLMLogEntry,
-} from './llmAuditLogger.js';
+} from './llmAuditLogger';
 import {
   ModelFallbackManager,
   DEFAULT_MODELS,
   type ModelConfig,
-} from './modelFallback.js';
-import { logger } from '../../utils/logger.js';
+} from './modelFallback';
+import { debug, info, warn, error } from '../../shared/logger';
 
 // Create a model fallback manager with the default OpenAI service
 const modelFallbackManager = new ModelFallbackManager(openai);
@@ -46,10 +46,10 @@ export async function initializeAICore(options: {
   try {
     // Initialize the prompt system
     await initializePromptSystem();
-    
+
     // Initialize OpenAI
     let openaiInitialized = false;
-    
+
     if (options.openaiApiKey) {
       // Initialize with API key
       openaiInitialized = openai.initialize(options.openaiApiKey);
@@ -63,11 +63,11 @@ export async function initializeAICore(options: {
       // Initialize with environment variable
       openaiInitialized = openai.initialize(process.env.OPENAI_API_KEY);
     }
-    
+
     if (!openaiInitialized) {
-      logger.warn('Failed to initialize OpenAI. Some AI features may not work.');
+      warn('Failed to initialize OpenAI. Some AI features may not work.');
     }
-    
+
     // Set up periodic prompt updates if requested
     if (options.checkForPromptUpdatesInterval) {
       setInterval(
@@ -75,10 +75,10 @@ export async function initializeAICore(options: {
         options.checkForPromptUpdatesInterval
       );
     }
-    
+
     return true;
   } catch (error) {
-    logger.error('Failed to initialize AI core:', error);
+    error('Failed to initialize AI core:', error);
     return false;
   }
 }
@@ -108,13 +108,13 @@ export async function generateFromTemplate(
   if (!template) {
     throw new Error(`Prompt template not found: ${templateName}`);
   }
-  
+
   // Fill the template with variables
   const { systemPrompt, userPrompt } = fillPromptTemplate(template, variables);
-  
+
   // If no user prompt, use an empty string
   const finalUserPrompt = userPrompt || '';
-  
+
   // Generate the completion
   if (options.useFallback) {
     // Use the model fallback manager

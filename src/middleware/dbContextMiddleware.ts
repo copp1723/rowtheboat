@@ -5,9 +5,9 @@
  * for Row Level Security (RLS) policies to use.
  */
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../shared/db.js';
+import { db } from '../shared/db';
 import { sql } from 'drizzle-orm';
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger';
 
 // Define custom Request interface with user property
 interface AuthRequest extends Request {
@@ -46,7 +46,7 @@ export async function setDbContext(req: AuthRequest, res: Response, next: NextFu
 
       // For debugging in development
       if (process.env.NODE_ENV === 'development') {
-        logger.debug({
+        debug({
           event: 'db_context_set',
           userId,
           isAdmin,
@@ -60,7 +60,7 @@ export async function setDbContext(req: AuthRequest, res: Response, next: NextFu
 
       // For debugging in development
       if (process.env.NODE_ENV === 'development') {
-        logger.debug({
+        debug({
           event: 'db_context_cleared',
           clientIp,
         }, `Cleared database context (no authenticated user, IP: ${clientIp})`);
@@ -69,7 +69,7 @@ export async function setDbContext(req: AuthRequest, res: Response, next: NextFu
 
     next();
   } catch (error) {
-    logger.error({
+    error({
       event: 'db_context_error',
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,

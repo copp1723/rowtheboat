@@ -2,9 +2,9 @@ import { db } from '../shared/db.js';
 import { isError } from '../utils/errorUtils.js';
 import { emailQueue as emailQueueTable } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
-import { EmailSendOptions, sendEmail as sendEmailService } from './mailerService.js';
+import { EmailSendOptions, sendEmail as sendEmailService } from './mailerService';
 import { v4 as uuidv4 } from 'uuid';
-import logger from '../utils/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { formatError } from '../utils/logger.js';
 interface EmailQueueOptions {
   maxRetries?: number;
@@ -49,7 +49,7 @@ class EmailQueueService {
     // Start processing if not already running
     if (!this.isProcessing) {
       this.processQueue().catch((error) =>
-        logger.error({
+        error({
           event: 'email_queue_process_error',
           ...formatError(error),
         })
@@ -91,7 +91,7 @@ class EmailQueueService {
               updatedAt: new Date(),
             })
             .where(eq(emailQueueTable.id, email.id));
-          logger.info({
+          info({
             event: 'email_sent',
             emailId: email.id,
             recipient: email.recipientEmail,
@@ -142,7 +142,7 @@ class EmailQueueService {
               processAfter: status === 'pending' ? new Date(Date.now() + retryDelay) : null,
             })
             .where(eq(emailQueueTable.id, email.id));
-          logger.error({
+          error({
             event: 'email_send_error',
             emailId: email.id,
             recipient: email.recipientEmail,
@@ -205,7 +205,7 @@ class EmailQueueService {
       // Start processing if not already running
       if (!this.isProcessing) {
         this.processQueue().catch((error) =>
-          logger.error({
+          error({
             event: 'email_queue_retry_error',
             emailId: id,
             ...formatError(error),
@@ -214,7 +214,7 @@ class EmailQueueService {
       }
       return true;
     } catch (error) {
-      logger.error({
+      error({
         event: 'email_retry_error',
         emailId: id,
         ...formatError(error),

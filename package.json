@@ -8,7 +8,10 @@
     "dev": "ts-node src/index.ts",
     "build": "./build.sh",
     "start": "node dist/index.js",
-    "migrate": "drizzle-kit generate:pg && drizzle-kit push:pg"
+    "migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
+    "type-check": "./check-types.sh",
+    "lint": "eslint --ext .ts,.tsx src/",
+    "lint:fix": "eslint --ext .ts,.tsx src/ --fix"
   },
   "keywords": [],
   "author": "",

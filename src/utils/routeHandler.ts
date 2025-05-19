@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { isError } from '../utils/errorUtils.js';
+import { isError, toAppError } from '../utils/errorUtils.js';
 // Use a type that allows for custom properties on the request
 type AnyRequest = Request & {
   [key: string]: any;
@@ -18,68 +18,20 @@ type AnyRequest = Request & {
  * @param handler - Express route handler function
  * @returns Wrapped route handler with consistent error handling
  */
-export function routeHandler<P = any>(
-  handler: (req: AnyRequest, res: Response, next?: NextFunction) => any
-): RequestHandler<P> {
-  return (req, res, next) => {
+export const routeHandler = (handler: (req: AnyRequest, res: Response, next: NextFunction) => any): RequestHandler => {
+  return async (req: AnyRequest, res: Response, next: NextFunction) => {
     try {
-      const result = handler(req as AnyRequest, res, next);
-      if (result instanceof Promise) {
-        result.catch((error: Error) => {
-          console.error('Route handler error:', error);
-          if (!res.headersSent) {
-            res.status(500).json({
-              error: 'Internal server error',
-              message:
-                error instanceof Error
-                  ? error instanceof Error
-                    ? (error instanceof Error ? (error instanceof Error ? error.message : String(error)) : String(error))
-                    : String(error)
-                  : String(error),
-            });
-          }
-        });
+      const result = await handler(req, res, next);
+      
+      if (result !== undefined) {
+        res.json(result);
       }
-      return result;
     } catch (error) {
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error)
-        ? error instanceof Error
-          ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-          : String(error)
+      const errorMessage = isError(error) 
+        ? (error instanceof Error ? error.message : String(error)) 
         : String(error);
-      // Use type-safe error handling
-      const errorMessage = isError(error)
-        ? error instanceof Error
-          ? isError(error)
-            ? error instanceof Error
-              ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-              : String(error)
-            : String(error)
-          : String(error)
-        : String(error);
-      console.error('Route handler error:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Internal server error',
-          message:
-            error instanceof Error
-              ? isError(error)
-                ? error instanceof Error
-                  ? isError(error)
-                    ? error instanceof Error
-                      ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
-                      : String(error)
-                    : String(error)
-                  : String(error)
-                : String(error)
-              : String(error),
-        });
-      }
+      
+      next(toAppError(error));
     }
   };
-}
+};

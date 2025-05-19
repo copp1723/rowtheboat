@@ -4,20 +4,20 @@
  * Main entry point for the distributed job queue system
  * Initializes all components and provides a unified interface
  */
-import { initializeRedis, closeConnections } from './bullmqService.js';
+import { initializeRedis, closeConnections } from './bullmqService';
 import { isError } from '../utils/errorUtils.js';
-import { initializeQueueManager } from './queueManager.js';
+import { initializeQueueManager } from './queueManager';
 import { initializeIngestionWorker } from '../workers/ingestionWorker.js';
 import { initializeProcessingWorker } from '../workers/processingWorker.js';
 import { initializeInsightWorker } from '../workers/insightWorker.js';
-import { initializeDistributedScheduler } from './distributedScheduler.js';
-import logger from '../utils/logger.js';
+import { initializeDistributedScheduler } from './distributedScheduler';
+import { debug, info, warn, error } from '../shared/logger.js';
 /**
  * Initialize the job queue system
  */
 export async function initializeJobQueueSystem(): Promise<void> {
   try {
-    logger.info(
+    info(
       {
         event: 'job_queue_system_initializing',
         timestamp: new Date().toISOString(),
@@ -34,7 +34,7 @@ export async function initializeJobQueueSystem(): Promise<void> {
     initializeInsightWorker();
     // Initialize distributed scheduler
     await initializeDistributedScheduler();
-    logger.info(
+    info(
       {
         event: 'job_queue_system_initialized',
         timestamp: new Date().toISOString(),
@@ -51,7 +51,7 @@ export async function initializeJobQueueSystem(): Promise<void> {
         ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
         : String(error)
       : String(error);
-    logger.error(
+    error(
       {
         event: 'job_queue_system_init_error',
         errorMessage,
@@ -67,7 +67,7 @@ export async function initializeJobQueueSystem(): Promise<void> {
  */
 export async function shutdownJobQueueSystem(): Promise<void> {
   try {
-    logger.info(
+    info(
       {
         event: 'job_queue_system_shutting_down',
         timestamp: new Date().toISOString(),
@@ -76,7 +76,7 @@ export async function shutdownJobQueueSystem(): Promise<void> {
     );
     // Close all connections
     await closeConnections();
-    logger.info(
+    info(
       {
         event: 'job_queue_system_shutdown_complete',
         timestamp: new Date().toISOString(),
@@ -93,7 +93,7 @@ export async function shutdownJobQueueSystem(): Promise<void> {
         ? isError(error) ? (error instanceof Error ? isError(error) ? (error instanceof Error ? error.message : String(error)) : String(error) : String(error)) : String(error)
         : String(error)
       : String(error);
-    logger.error(
+    error(
       {
         event: 'job_queue_system_shutdown_error',
         errorMessage,
@@ -105,9 +105,9 @@ export async function shutdownJobQueueSystem(): Promise<void> {
   }
 }
 // Export all components for direct access
-export * from './bullmqService.js';
-export * from './queueManager.js';
-export * from './distributedScheduler.js';
+export * from './bullmqService';
+export * from './queueManager';
+export * from './distributedScheduler';
 export * from '../workers/ingestionWorker.js';
 export * from '../workers/processingWorker.js';
 export * from '../workers/insightWorker.js';

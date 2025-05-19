@@ -5,7 +5,7 @@
  * including custom error classes, error boundaries, and error formatting.
  */
 
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { AppError, isAppError, toAppError } from '../shared/errorTypes.js';
 import { Request, Response, NextFunction } from 'express';
 import React from 'react';
@@ -57,23 +57,15 @@ type ErrorCode = keyof typeof ERROR_CODES;
 /**
  * Extended AppError with error codes and additional context
  */
-export class CodedError extends AppError {
-  public readonly code: string;
-  
+export class CodedError implements AppError {
+  public name = this.constructor.name;
   constructor(
-    message: string,
-    code: ErrorCode = 'UNEXPECTED_ERROR',
-    statusCode: number = 500,
-    context: Record<string, any> = {},
-    isOperational: boolean = true
-  ) {
-    super(message, statusCode, isOperational, {
-      ...context,
-      errorCode: code,
-    });
-    this.code = code;
-    this.name = this.constructor.name;
-  }
+    public message: string,
+    public code: string,
+    public context?: Record<string, unknown>,
+    public statusCode?: number,
+    public isOperational = true
+  ) {}
 }
 
 /**
@@ -123,9 +115,9 @@ export function logError(error: unknown, context: Record<string, any> = {}) {
   };
 
   if (appError.isOperational) {
-    logger.warn('Operational error occurred', logData);
+    warn('Operational error occurred', logData);
   } else {
-    logger.error('Unexpected error occurred', logData);
+    error('Unexpected error occurred', logData);
   }
 }
 

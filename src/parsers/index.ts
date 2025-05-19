@@ -6,8 +6,8 @@
  */
 
 // Export interfaces and types
-export { FileType, ParserOptions, ParserResult } from './base/types.js';
-export { IParser } from './base/IParser.js';
+export { FileType, ParserOptions, ParserResult } from './base/types';
+export { IParser } from './base/IParser';
 
 // Export error classes
 export {
@@ -17,28 +17,28 @@ export {
   UnsupportedFileTypeError,
   ParseError,
   DuplicateFileError,
-} from './errors/ParserError.js';
+} from './errors/ParserError';
 
 // Export base parser
-export { BaseParser } from './base/BaseParser.js';
+export { BaseParser } from './base/BaseParser';
 
 // Export specific parsers
-export { CSVParser, CSVParserOptions } from './implementations/CSVParser.js';
-export { XLSXParser, XLSXParserOptions } from './implementations/XLSXParser.js';
-export { PDFParser, PDFParserOptions, PDFExtractionMode } from './implementations/PDFParser.js';
+export { CSVParser, CSVParserOptions } from './implementations/CSVParser';
+export { XLSXParser, XLSXParserOptions } from './implementations/XLSXParser';
+export { PDFParser, PDFParserOptions, PDFExtractionMode } from './implementations/PDFParser';
 
 // Export factory
-export { ParserFactory } from './factory/ParserFactory.js';
+export { ParserFactory } from './factory/ParserFactory';
 
 // Export utilities
-export * from './utils/fileUtils.js';
+export * from './utils/fileUtils';
 
 // Import parsers for registration
-import { ParserFactory } from './factory/ParserFactory.js';
-import { FileType } from './base/types.js';
-import { CSVParser } from './implementations/CSVParser.js';
-import { XLSXParser } from './implementations/XLSXParser.js';
-import { PDFParser } from './implementations/PDFParser.js';
+import { ParserFactory } from './factory/ParserFactory';
+import { FileType } from './base/types';
+import { CSVParser } from './implementations/CSVParser';
+import { XLSXParser } from './implementations/XLSXParser';
+import { PDFParser } from './implementations/PDFParser';
 
 // Register all parsers with the factory
 ParserFactory.registerParser(FileType.CSV, CSVParser);

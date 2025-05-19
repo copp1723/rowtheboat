@@ -7,7 +7,7 @@
 import { JobsOptions } from 'bullmq';
 import { getErrorMessage } from '../utils/errorUtils.js';
 import { v4 as uuidv4 } from 'uuid';
-import logger from '../utils/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 import { db } from '../shared/db.js';
 import { jobs } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
@@ -18,7 +18,7 @@ import {
   QUEUE_NAMES,
   JOB_TYPES,
   defaultJobOptions,
-} from './bullmqService.js';
+} from './bullmqService';
 
 // Import the centralized BullMQ types
 import {
@@ -32,7 +32,7 @@ import {
   ReportJobData,
   WorkflowJobData,
   BaseJobData
-} from '../types/bullmq';
+} from '../types/bullmq.js';
 
 // Queue instances with proper typing
 let ingestionQueue: Queue<ReportJobData> | null = null;
@@ -80,7 +80,7 @@ export async function initializeQueueManager(): Promise<void> {
       createScheduler(QUEUE_NAMES.PROCESSING);
       createScheduler(QUEUE_NAMES.EMAIL);
       createScheduler(QUEUE_NAMES.INSIGHT);
-      logger.info(
+      info(
         {
           event: 'queue_manager_initialized',
           timestamp: new Date().toISOString(),
@@ -90,7 +90,7 @@ export async function initializeQueueManager(): Promise<void> {
     } else {
       // Set up in-memory job processing
       setInterval(processInMemoryJobs, 5000);
-      logger.info(
+      info(
         {
           event: 'in_memory_queue_manager_initialized',
           timestamp: new Date().toISOString(),
@@ -100,7 +100,7 @@ export async function initializeQueueManager(): Promise<void> {
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'queue_manager_init_error',
         errorMessage,
@@ -180,7 +180,7 @@ async function processInMemoryJobs(): Promise<void> {
 async function processInMemoryJob(job: any): Promise<void> {
   // This is a placeholder for actual job processing
   // In a real implementation, this would dispatch to the appropriate handler
-  logger.info(
+  info(
     {
       event: 'in_memory_job_processing',
       jobId: job.id,
@@ -240,7 +240,7 @@ export async function addJob<T extends BaseJobData>(
       // Add job to queue with proper typing
       await queue.add(jobName, data, jobOptions);
 
-      logger.info(
+      info(
         {
           event: 'job_added',
           jobId,
@@ -266,7 +266,7 @@ export async function addJob<T extends BaseJobData>(
         nextRunAt: new Date(),
       });
 
-      logger.info(
+      info(
         {
           event: 'in_memory_job_added',
           jobId,
@@ -293,7 +293,7 @@ export async function addJob<T extends BaseJobData>(
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'add_job_error',
         queueName,
@@ -357,7 +357,7 @@ export async function addRepeatedJob<T extends BaseJobData>(
       // Add repeatable job to queue with proper typing
       await queue.add(jobName, data, jobOptions);
 
-      logger.info(
+      info(
         {
           event: 'repeated_job_added',
           jobId,
@@ -385,7 +385,7 @@ export async function addRepeatedJob<T extends BaseJobData>(
         nextRunAt: new Date(),
       });
 
-      logger.info(
+      info(
         {
           event: 'in_memory_repeated_job_added',
           jobId,
@@ -413,7 +413,7 @@ export async function addRepeatedJob<T extends BaseJobData>(
     return jobId;
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    logger.error(
+    error(
       {
         event: 'add_repeated_job_error',
         queueName,

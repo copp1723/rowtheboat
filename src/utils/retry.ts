@@ -4,7 +4,7 @@
  * Provides configurable retry mechanisms with exponential backoff for handling
  * transient failures in network operations, API calls, and other error-prone tasks.
  */
-import { logger } from '../shared/logger.js';
+import { debug, info, warn, error } from '../shared/logger.js';
 /**
  * Retry options for configuring retry behavior
  */
@@ -75,7 +75,7 @@ export async function retry<T>(fn: () => Promise<T>, options: RetryOptions = {})
       }
       // Check if we've exceeded the maximum retry time
       if (maxRetryTime && Date.now() - startTime > maxRetryTime) {
-        logger.warn(`Retry operation exceeded maximum time of ${maxRetryTime}ms`);
+        warn(`Retry operation exceeded maximum time of ${maxRetryTime}ms`);
         throw error;
       }
       // Calculate delay with exponential backoff
@@ -86,7 +86,7 @@ export async function retry<T>(fn: () => Promise<T>, options: RetryOptions = {})
         delay = Math.floor(delay * jitterFactor);
       }
       // Log retry attempt
-      logger.info(`Retry attempt ${attempt}/${retries} after ${delay}ms delay`, {
+      info(`Retry attempt ${attempt}/${retries} after ${delay}ms delay`, {
         error:
           error instanceof Error
             ? error instanceof Error
